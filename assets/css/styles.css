@@ -439,6 +439,16 @@ a { color: inherit; text-decoration: none; }
 
 .foot p { margin: 0; }
 
+/* Reads a step above the risk line — it is a statement, not fine print.
+   Scoped under .foot so its auto margins beat the `.foot p` reset above. */
+.foot .foot__notice {
+  max-width: 620px;
+  margin: 0 auto 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
 /* ==========================================================================
    Responsive
    ========================================================================== */

@@ -21,15 +21,17 @@ everything after that is polish and live figures.
 
 ## 2. Branding
 
-- `images/logo.png` — the mark. Then regenerate `favicon.ico`,
-  `images/favicon.png`, `images/apple-touch-icon.png` and
-  `images/icon-192.png` / `images/icon-512.png` from it (apple-touch must be
+- `images/logo.png` — the mark. Then regenerate `images/apple-touch-icon.png`
+  and `images/icon-192.png` / `images/icon-512.png` from it (apple-touch must be
   flattened onto white), and bump the `?v=` on the icon links in `index.html`.
-- `images/header.mp4` and `images/header_poster.webp` — the banner clip and its
-  poster. **The poster must be the clip's own first frame**, or the hand-off
-  from poster to playback jumps. Strip the audio track; the video is muted and
-  looping, so it is dead weight. If your clip is not 800×368, update the
-  `width`/`height` on the `<video>` in `index.html` and the hero's
+- `images/favicon.png` — the tab mark, kept separate from the logo. Regenerate
+  `favicon.ico` from it (trimmed to the artwork and padded back to a square, so
+  it still reads at 16px) and bump the `?v=` on the two `rel="icon"` links.
+- `images/box_banner.mp4` and `images/box_banner_poster.webp` — the banner clip
+  and its poster. **The poster must be the clip's own first frame**, or the
+  hand-off from poster to playback jumps. Strip the audio track; the video is
+  muted and looping, so it is dead weight. If your clip is not 864×336, update
+  the `width`/`height` on the `<video>` in `index.html` and the hero's
   `aspect-ratio` in `assets/css/styles.css` to match.
 - `index.html` — `<title>`, the description and OG/Twitter meta, the brand
   wordmark in the top bar, the `@handle` caption, and the card labels naming the

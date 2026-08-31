@@ -47,7 +47,7 @@ window.SITE_CONFIG = {
   /* ---- Links ---------------------------------------------------------- */
 
   links: {
-    x: 'https://x.com/your_handle',        // TODO
+    x: 'https://x.com/AmznBox',
 
     // Leave null to auto-build a DexScreener link from the contract address.
     chart: null,

@@ -81,5 +81,5 @@ cannot run against the placeholder addresses.
   `ok`, and any `—` on a card should be a figure you know is not fed yet.
 - Check the CA button copies the full address, and that the chart button opens
   the right token.
-- Confirm no placeholder survives: search the repo for `your_handle` and
-  `0xAAAA`.
+- Confirm no placeholder survives: search the repo for `0xAAAA`, the address
+  the indexer ships with.

@@ -226,11 +226,13 @@ cd worker && npm test
 
 ## Notes
 
-- `favicon.ico`, `images/favicon.png`, `images/apple-touch-icon.png` and the two
-  `icon-*.png` manifest icons are all generated from `images/logo.png`.
-  Regenerate them together when the mark changes — the apple-touch one has to be
-  flattened onto white, because iOS renders a transparent home-screen icon as
-  black — and bump the `?v=` on the icon links so browsers drop the cached mark.
+- `favicon.ico` is generated from `images/favicon.png`, the tab mark: the
+  artwork is trimmed out of its empty margin and padded back to a square, or it
+  shrinks to nothing at 16px. `images/apple-touch-icon.png` and the two
+  `icon-*.png` manifest icons come from `images/logo.png` instead — the
+  apple-touch one has to be flattened onto white, because iOS renders a
+  transparent home-screen icon as black. Bump the `?v=` on whichever icon links
+  changed, so browsers drop the cached mark.
 - `favicon.ico` sits at the repo root because browsers request `/favicon.ico` on
   their own, whatever the `<link>` tags say.
 - The hero clip is 800×368 and audio-stripped. Its ratio is encoded twice: the

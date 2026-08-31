@@ -21,10 +21,12 @@ everything after that is polish and live figures.
 
 ## 2. Branding
 
-- `images/logo.png` — the mark. Then regenerate `favicon.ico`,
-  `images/favicon.png`, `images/apple-touch-icon.png` and
-  `images/icon-192.png` / `images/icon-512.png` from it (apple-touch must be
+- `images/logo.png` — the mark. Then regenerate `images/apple-touch-icon.png`
+  and `images/icon-192.png` / `images/icon-512.png` from it (apple-touch must be
   flattened onto white), and bump the `?v=` on the icon links in `index.html`.
+- `images/favicon.png` — the tab mark, kept separate from the logo. Regenerate
+  `favicon.ico` from it (trimmed to the artwork and padded back to a square, so
+  it still reads at 16px) and bump the `?v=` on the two `rel="icon"` links.
 - `images/header.mp4` and `images/header_poster.webp` — the banner clip and its
   poster. **The poster must be the clip's own first frame**, or the hand-off
   from poster to playback jumps. Strip the audio track; the video is muted and

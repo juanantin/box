@@ -21,24 +21,28 @@ everything after that is polish and live figures.
 
 ## 2. Branding
 
-- `images/logo.png` — the mark. Then regenerate `images/apple-touch-icon.png`
-  and `images/icon-192.png` / `images/icon-512.png` from it (apple-touch must be
-  flattened onto white), and bump the `?v=` on the icon links in `index.html`.
-- `images/favicon.png` — the tab mark, kept separate from the logo. Regenerate
-  `favicon.ico` from it (trimmed to the artwork and padded back to a square, so
-  it still reads at 16px) and bump the `?v=` on the two `rel="icon"` links.
+- `images/favicon.png` — the mark, and the source of every icon. Regenerate
+  `favicon.ico`, `images/apple-touch-icon.png` and `images/icon-192.png` /
+  `images/icon-512.png` from it, trimming the artwork out of its empty margin
+  and padding it back to a square first — untrimmed, it shrinks to nothing at
+  16px. The apple-touch one has to be flattened onto white, because iOS renders
+  a transparent home-screen icon as black. Bump the `?v=` on the icon links in
+  `index.html` so browsers drop the cached mark.
 - `images/box_banner.mp4` and `images/box_banner_poster.webp` — the banner clip
   and its poster. **The poster must be the clip's own first frame**, or the
   hand-off from poster to playback jumps. Strip the audio track; the video is
   muted and looping, so it is dead weight. If your clip is not 864×336, update
   the `width`/`height` on the `<video>` in `index.html` and the hero's
   `aspect-ratio` in `assets/css/styles.css` to match.
-- `index.html` — `<title>`, the description and OG/Twitter meta, the brand
-  wordmark in the top bar, the `@handle` caption, and the card labels naming the
-  reward token.
+- `index.html` — `<title>`, the description and OG/Twitter meta, the card
+  labels naming the reward token, and the three fixed rows in
+  `<section class="facts">` (supply, network, token). There is no wordmark to
+  change: the banner carries it, and the `<h1>` behind it is screen-reader only.
 - `site.webmanifest` — `name` and `short_name`.
-- `assets/css/styles.css` — only if the palette changes; the blue is
-  `--blue` and the band behind the dashboard is `--band`.
+- `assets/css/styles.css` — only if the palette changes. `--page` is sampled
+  from the banner's own background, which is what lets the clip sit flush at
+  the top with no seam; resample it if you swap the clip. `--tan` and
+  `--tan-soft` are the accent and the icon discs.
 - The two ecosystem lockups at the bottom of `index.html` — swap them if the
   token launched somewhere else, or delete the whole `<section class="eco">`.
 
@@ -77,5 +81,5 @@ cannot run against the placeholder addresses.
   `ok`, and any `—` on a card should be a figure you know is not fed yet.
 - Check the CA button copies the full address, and that the chart button opens
   the right token.
-- Confirm no placeholder survives: search the repo for `your_handle`, `$TOKEN`,
-  `$REWARD`, `Your Token` and `0xAAAA`.
+- Confirm no placeholder survives: search the repo for `your_handle` and
+  `0xAAAA`.

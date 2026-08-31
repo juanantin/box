@@ -26,11 +26,14 @@
      Formatting
      --------------------------------------------------------------------- */
 
-  // Whole numbers throughout — cents on a market cap are noise.
+  /* Cents throughout on money, because the cards are read side by side and a
+     rounded figure next to an exact one looks like a bug. Counts stay whole:
+     there is no such thing as a third of a holder. */
+  var nf2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
-  function usd(n) { return '$' + nf0.format(Math.round(n)); }
-  function amount(n) { return nf0.format(Math.round(n)); }
+  function usd(n) { return '$' + nf2.format(n); }
+  function amount(n) { return nf2.format(n); }
   function count(n) { return nf0.format(Math.round(n)); }
 
   var FORMATTERS = {
@@ -108,6 +111,12 @@
   var xLink = document.getElementById('link-x');
   if (xLink && LINKS.x) xLink.href = LINKS.x;
 
+  /* The two footer lockups, so every outbound link lives in config.js. */
+  [['link-launched', LINKS.launchedIn], ['link-rewards', LINKS.rewardsBy]].forEach(function (pair) {
+    var el = document.getElementById(pair[0]);
+    if (el && pair[1]) el.href = pair[1];
+  });
+
   /* Copy-to-clipboard, with a fallback for non-secure contexts. */
   var copyBtn = document.getElementById('copy-ca');
   var toast = document.getElementById('copy-toast');
@@ -138,15 +147,15 @@
 
   if (copyBtn) {
     copyBtn.addEventListener('click', function () {
-      if (!address) { flashToast('NO ADDRESS SET', true); return; }
+      if (!address) { flashToast('No address set', true); return; }
 
       function fallback() {
         var ok = legacyCopy(address);
-        flashToast(ok ? 'COPIED!' : 'COPY FAILED', !ok);
+        flashToast(ok ? 'Copied!' : 'Copy failed', !ok);
       }
 
       if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(address).then(function () { flashToast('COPIED!'); }, fallback);
+        navigator.clipboard.writeText(address).then(function () { flashToast('Copied!'); }, fallback);
       } else {
         fallback();
       }

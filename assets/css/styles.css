@@ -1,40 +1,38 @@
 /* ==========================================================================
-   BASED COIN — styles
+   AN AMAZON BOX — styles
 
-   Hand-lettered throughout: Gloria Hallelujah carries the display type, and
-   Architects Daughter everything else. Both are single-weight faces, so
-   emphasis comes from size and colour, never font-weight.
+   One warm page: the banner's own cream carries through the whole document,
+   so the clip sits flush at the top with no seam. Ink is near-black, the only
+   accent is the cardboard tan the banner is lettered in, and every icon rides
+   in a tan disc so the six cards read as one set.
    ========================================================================== */
 
 :root {
-  /* Brand */
-  --blue:        #1f55f0;
-  --blue-deep:   #143bb0;
-  --blue-soft:   #9db6f7;   /* the pale sketch strokes in the banner */
-  --green-ink:   #1c8a24;
+  /* Surfaces & ink — --page is sampled from the banner, so they match exactly */
+  --page:        #fbf7f6;
+  --surface:     #fdfbfa;
+  --ink:         #14110f;
+  --ink-2:       #4b443e;
+  --muted:       #857b73;
+  --line:        #e9e0d7;
+  --line-strong: #ddd2c6;
 
-  /* Surfaces & ink */
-  --page:        #ffffff;
-  --band:        #eaf0fe;   /* the blue band behind the dashboard */
-  --surface:     #ffffff;
-  --ink:         #10131a;
-  --ink-2:       #3d4655;
-  --muted:       #7a8496;
-  --line:        #12161f;   /* hand-drawn outlines are near-black, not grey */
-  --line-soft:   #d9e2fa;
+  /* Cardboard accent */
+  --tan:         #b9855b;
+  --tan-deep:    #9a6a3f;
+  --tan-soft:    #f2e7db;
+
+  --base-blue:   #0052ff;
 
   /* Shape */
-  --r-btn:       14px;
-  --r-card:      20px;
+  --r-btn:       12px;
+  --r-card:      16px;
 
-  --shadow-card: 0 2px 3px rgba(16,19,26,.04), 0 10px 26px rgba(31,85,240,.07);
-  --shadow-btn:  0 2px 0 rgba(16,19,26,.9);
+  --shadow-card: 0 1px 2px rgba(20,17,15,.03), 0 6px 18px rgba(122,94,66,.05);
 
-  --wrap:        1040px;
-  --wave-h:      clamp(34px, 4.4vw, 64px);
+  --wrap:        1000px;
 
-  --font-hand:    "Architects Daughter", "Comic Sans MS", ui-rounded, cursive;
-  --font-display: "Gloria Hallelujah", "Architects Daughter", "Comic Sans MS", cursive;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
 
   color-scheme: light;
 }
@@ -45,11 +43,16 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  font-family: var(--font-hand);
+  font-family: var(--font);
   color: var(--ink);
-  background: var(--page);
+  background-color: var(--page);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+
+  /* The faint isometric cubes behind everything. Drawn rather than shipped as
+     an image so it stays crisp at any zoom and costs no request. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='104' viewBox='0 0 120 104'%3E%3Cg fill='none' stroke='%23b9855b' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M30 0 60 17v34L30 68 0 51V17Z'/%3E%3Cpath d='M0 17l30 17 30-17M30 34v34'/%3E%3Cpath d='M90 52l30 17v34l-30 17-30-17V69Z'/%3E%3Cpath d='M60 69l30 17 30-17M90 86v34'/%3E%3C/g%3E%3C/svg%3E");
+  background-position: center top;
 }
 
 img { max-width: 100%; height: auto; display: block; }
@@ -57,160 +60,35 @@ img { max-width: 100%; height: auto; display: block; }
 a { color: inherit; text-decoration: none; }
 
 :where(a, button):focus-visible {
-  outline: 2.5px solid var(--blue);
+  outline: 2.5px solid var(--tan-deep);
   outline-offset: 3px;
   border-radius: var(--r-btn);
 }
 
-/* ==========================================================================
-   Top bar
-   ========================================================================== */
+/* Present to screen readers, absent on screen — the banner carries the
+   wordmark as pixels, so the page still needs a real heading. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-.topbar { padding: 18px 20px 6px; }
-
-.topbar__inner {
+.wrap {
   max-width: var(--wrap);
   margin: 0 auto;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  padding: 0 20px;
 }
-
-/* Brand lockup — mark, then the two-line wordmark */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: none;
-}
-
-.brand__mark { width: 46px; height: 46px; }
-
-.brand__word {
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-display);
-  font-size: 22px;
-  line-height: 1.05;
-  letter-spacing: .01em;
-}
-
-.brand__line { display: block; }
-.brand__line--blue { color: var(--blue); }
-
-/* Buttons carry a drawn outline rather than a border + shadow stack */
-.topbar__links {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 2.5px solid var(--line);
-  border-radius: var(--r-btn);
-  background: var(--surface);
-  font: inherit;
-  font-size: 15px;
-  color: var(--ink);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  white-space: nowrap;   /* a wrapped address would double the button's height */
-  cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease;
-}
-
-.btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-btn); }
-.btn:active { transform: translateY(0); box-shadow: none; }
-
-.btn__icon { width: 18px; height: 18px; flex: none; color: var(--ink); }
-
-/* Stroke icons, matching the drawn button outlines and the dashboard set */
-.btn__icon--drawn {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.btn--icon { padding: 0 20px; }
-
-.btn--ca { gap: 8px; text-transform: none; }
-
-.btn__tag { color: var(--muted); }
-
-.btn__addr {
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
-.btn__icon--copy { color: var(--muted); width: 16px; height: 16px; }
-.btn--ca:hover .btn__icon--copy { color: var(--blue); }
-
-/* The @handle is a caption under the X button, so it can't widen the row */
-.x-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.x-wrap .btn { width: 100%; }
-
-.x-handle {
-  font-size: 12.5px;
-  color: var(--ink-2);
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-/* Copied toast */
-.ca-wrap { position: relative; }
-
-.toast {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  border-radius: var(--r-btn);
-  background: #12161f;
-  color: #fff;
-  font-size: 13.5px;
-  white-space: nowrap;
-  box-shadow: 0 8px 22px rgba(16,19,26,.24);
-  opacity: 0;
-  transform: translateY(-6px) scale(.96);
-  pointer-events: none;
-  transition: opacity .18s ease, transform .18s ease;
-  z-index: 4;
-}
-
-.toast.is-on { opacity: 1; transform: translateY(0) scale(1); }
-
-.toast__check { width: 15px; height: 15px; color: #4ecb3a; flex: none; }
-.toast.is-error .toast__check { color: #ff8a7a; }
 
 /* ==========================================================================
    Hero
    ========================================================================== */
 
 .hero {
-  padding: 6px 20px 0;
+  padding: 8px 20px 0;
   overflow: hidden;   /* contains the mobile overscan below */
 }
 
@@ -229,76 +107,90 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ==========================================================================
-   Waves — the drawn edges of the blue band
+   Actions — the three buttons under the banner
    ========================================================================== */
 
-.wave { line-height: 0; }
+.actions { padding: 20px 20px 34px; }
 
-.wave svg {
-  display: block;
-  width: 100%;
-  height: var(--wave-h);
-}
-
-.wave__fill { fill: var(--band); }
-
-.wave__line {
-  fill: none;
-  stroke: var(--blue);
-  stroke-width: 4;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;   /* the stretch must not fatten the line */
-}
-
-/* ==========================================================================
-   Band
-   ========================================================================== */
-
-.band { background: var(--band); }
-
-.band__inner {
+.actions__inner {
   max-width: var(--wrap);
   margin: 0 auto;
-  padding: 4px 20px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
 }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 26px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-btn);
+  background: var(--surface);
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--tan);
+  box-shadow: 0 4px 14px rgba(122,94,66,.10);
+}
+
+.btn:active { transform: translateY(0); box-shadow: none; }
+
+.btn__icon { width: 19px; height: 19px; flex: none; color: var(--ink); }
+
+.btn__icon--stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Copied toast */
+.ca-wrap { position: relative; }
+
+.toast {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--r-btn);
+  background: #14110f;
+  color: #fff;
+  font-size: 13.5px;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(20,17,15,.22);
+  opacity: 0;
+  transform: translate(-50%, -6px) scale(.96);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 4;
+}
+
+.toast.is-on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+.toast__check { width: 15px; height: 15px; color: #7ddb6a; flex: none; }
+.toast.is-error .toast__check { color: #ff8a7a; }
 
 /* ==========================================================================
-   Dashboard
+   Dashboard cards
    ========================================================================== */
-
-.dashboard__title {
-  position: relative;
-  width: max-content;
-  max-width: 100%;
-  margin: 0 auto 30px;
-  padding-bottom: 12px;
-  font-family: var(--font-display);
-  font-size: clamp(30px, 5vw, 44px);
-  font-weight: 400;
-  line-height: 1.1;
-  letter-spacing: .05em;
-  color: var(--blue);
-  text-transform: uppercase;
-  text-align: center;
-}
-
-/* The drawn rule under the title, stretched to whatever the title measures */
-.underline {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 12px;
-  overflow: visible;
-}
-
-.underline path {
-  fill: none;
-  stroke: var(--blue);
-  stroke-width: 4;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
 
 .stats {
   display: grid;
@@ -306,47 +198,36 @@ a { color: inherit; text-decoration: none; }
   gap: 18px;
 }
 
+/* Label and figure left, icon right — the disc is the card's only colour */
 .stat {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 18px;
-  padding: 20px 22px;
+  padding: 24px 26px;
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   background: var(--surface);
   box-shadow: var(--shadow-card);
-  transition: transform .18s ease, box-shadow .18s ease;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 
 .stat:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(16,19,26,.05), 0 16px 34px rgba(31,85,240,.12);
+  border-color: var(--line-strong);
+  box-shadow: 0 2px 4px rgba(20,17,15,.04), 0 14px 30px rgba(122,94,66,.10);
 }
-
-/* Drawn outline icons: one stroke spec for every path in the set */
-.stat__icon { flex: none; display: grid; place-items: center; }
-
-.stat__icon svg {
-  width: 56px;
-  height: 56px;
-  fill: none;
-  stroke: var(--blue);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.stat__icon--logo img { width: 52px; height: 52px; }
 
 .stat__body { min-width: 0; }
 
 .stat__label {
-  margin: 0 0 4px;
-  font-size: 14.5px;
-  font-weight: 400;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
   line-height: 1.25;
-  letter-spacing: .06em;
+  letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--muted);
 }
 
 .stat__value {
@@ -355,30 +236,60 @@ a { color: inherit; text-decoration: none; }
   flex-wrap: wrap;
   gap: 8px;
   margin: 0;
-  font-size: clamp(24px, 3vw, 30px);
+  font-size: clamp(25px, 3.2vw, 32px);
+  font-weight: 700;
+  letter-spacing: -.02em;
   line-height: 1.15;
   color: var(--ink);
   word-break: break-word;
 }
 
-.stat__unit { font-size: .62em; color: var(--blue); }
+.stat__unit {
+  font-size: .62em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
 
 /* No source for this metric yet — don't dress a dash up as a figure */
-.stat__value .is-empty { color: var(--muted); }
+.stat__value .is-empty { color: var(--muted); font-weight: 500; }
 
 .stat__sub {
-  margin: 5px 0 0;
-  font-size: 15px;
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--ink-2);
   white-space: nowrap;
 }
 
-.stat__sub--usd b::before { content: "$"; }
-
-.stat__sub b { font-weight: 400; }
+.stat__sub b { font-weight: 500; }
+.stat__sub b::before { content: "$"; }
 
 /* Values are numeric strings that swap in — keep them from reflowing */
-.stat__value, .stat__sub b { font-variant-numeric: proportional-nums; }
+.stat__value, .stat__sub b { font-variant-numeric: tabular-nums; }
+
+/* One icon spec for the whole set: a tan disc with a drawn glyph inside */
+.stat__icon,
+.fact__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--tan-soft);
+}
+
+.stat__icon svg,
+.fact__icon svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: var(--tan-deep);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 /* Blinking "…" placeholder, shown until the first data load resolves */
 .dots {
@@ -389,8 +300,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .dots i {
-  width: .22em;
-  height: .22em;
+  width: .2em;
+  height: .2em;
   border-radius: 50%;
   background: currentColor;
   opacity: .25;
@@ -408,11 +319,68 @@ a { color: inherit; text-decoration: none; }
 /* The sub-line's "$" prefix would sit oddly beside the dots */
 .stat__sub b:has(.dots)::before { content: none; }
 
-.dashboard__note {
+.note {
   margin: 16px 0 0;
   text-align: center;
   font-size: 14px;
   color: var(--muted);
+}
+
+/* ==========================================================================
+   Token facts — one card, three fixed properties
+   ========================================================================== */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 26px;
+  padding: 22px 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Base keeps its own blue — it is a network mark, not part of the set */
+.fact__icon--base { background: transparent; }
+.fact__icon--base svg { stroke: var(--base-blue); stroke-width: 1.8; width: 30px; height: 30px; }
+
+.fact__body { min-width: 0; }
+
+.fact__label {
+  margin: 0 0 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fact__value {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.fact__accent { color: var(--tan); }
+
+.fact__sub {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.3;
 }
 
 /* ==========================================================================
@@ -421,13 +389,15 @@ a { color: inherit; text-decoration: none; }
 
 .eco {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 10px;
-  margin: 26px 0 8px;
-  padding: 24px 20px;
-  border: 2.5px dashed var(--blue-soft);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+  margin: 44px auto 0;
+  max-width: 660px;
+  padding: 22px 24px 26px;
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
+  background: var(--surface);
 }
 
 .eco__half {
@@ -435,8 +405,8 @@ a { color: inherit; text-decoration: none; }
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  padding: 4px 8px;
+  border-radius: 12px;
   text-align: center;
   transition: transform .18s ease;
 }
@@ -444,9 +414,7 @@ a { color: inherit; text-decoration: none; }
 .eco__half:hover { transform: translateY(-2px); }
 
 .eco__kicker {
-  font-size: 14px;
-  letter-spacing: .05em;
-  text-transform: uppercase;
+  font-size: 13.5px;
   color: var(--ink-2);
   line-height: 1.3;
 }
@@ -455,16 +423,8 @@ a { color: inherit; text-decoration: none; }
    they are sized by height and left to keep their own ratios. The
    Stonks.Exchange bar is much the wider of the two, which makes it read
    smaller at a matched height, so it gets a little more. */
-.eco__logo { height: 54px; width: auto; }
-.eco__logo--stonks { height: 66px; }
-
-.eco__rule {
-  width: 2.5px;
-  align-self: stretch;
-  min-height: 84px;
-  border-radius: 999px;
-  background: var(--blue-soft);
-}
+.eco__logo { height: 44px; width: auto; }
+.eco__logo--stonks { height: 52px; }
 
 /* ==========================================================================
    Footer
@@ -473,8 +433,8 @@ a { color: inherit; text-decoration: none; }
 .foot {
   text-align: center;
   color: var(--muted);
-  font-size: 14px;
-  padding: 10px 20px 26px;
+  font-size: 13px;
+  padding: 34px 20px 40px;
 }
 
 .foot p { margin: 0; }
@@ -484,45 +444,22 @@ a { color: inherit; text-decoration: none; }
    ========================================================================== */
 
 @media (max-width: 900px) {
-  /* The bar keeps its two-sided shape all the way down: brand hard left,
-     the three buttons on one line to the right of it. Everything below is
-     what has to give for that row to fit a phone. */
-  .topbar__inner { align-items: center; gap: 10px; }
-  .topbar__links { flex-wrap: nowrap; gap: 8px; }
   .stats { gap: 14px; }
-  .stat { padding: 16px 18px; gap: 14px; }
-  .stat__icon svg, .stat__icon--logo img { width: 46px; height: 46px; }
+  .stat { padding: 18px 20px; gap: 14px; }
+  .stat__icon, .fact__icon { width: 46px; height: 46px; }
+  .stat__icon svg, .fact__icon svg { width: 23px; height: 23px; }
+  .facts { gap: 20px; padding: 20px; }
 }
 
 @media (max-width: 760px) {
-  .brand__mark { width: 38px; height: 38px; }
-  .brand__word { font-size: 18px; }
-  .btn { min-height: 38px; padding: 0 12px; font-size: 13px; gap: 7px; }
-  .btn__icon { width: 16px; height: 16px; }
-  .btn--icon { padding: 0 12px; }
+  .btn { min-height: 46px; padding: 0 18px; font-size: 14px; gap: 8px; }
+  .btn__icon { width: 17px; height: 17px; }
+
+  /* One fact per row, so the value never wraps under its own icon */
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 18px; }
 }
 
 @media (max-width: 620px) {
-  .topbar { padding: 14px 14px 4px; }
-  .brand { gap: 8px; }
-  .brand__mark { width: 34px; height: 34px; }
-  .brand__word { font-size: 15px; }
-
-  .btn { min-height: 34px; padding: 0 9px; font-size: 12px; gap: 6px; letter-spacing: .02em; }
-  .btn--icon { padding: 0 10px; }
-  .btn__icon { width: 15px; height: 15px; }
-  .btn__icon--drawn { width: 17px; height: 17px; }   /* strokes read lighter than fills */
-  .btn__icon--copy { width: 14px; height: 14px; }
-  .btn__addr { font-size: 12px; }
-
-  /* The handle is wider than the button it captions, so on a phone it would
-     set the width of the whole X column and push the row off screen. The
-     button keeps its accessible name either way. */
-  .x-handle { display: none; }
-
-  /* "CA:" is the first thing to go — the address reads as one regardless */
-  .btn__tag { display: none; }
-
   /* The hero drops its side padding and runs edge to edge, slightly
      overscanning the banner's own margins so it reads as large as it can. */
   .hero { padding: 4px 0 0; }
@@ -533,42 +470,37 @@ a { color: inherit; text-decoration: none; }
     margin-left: -3%;
   }
 
-  .band__inner { padding: 2px 14px 6px; }
+  .actions { padding: 4px 14px 22px; gap: 10px; }
+  .actions__inner { gap: 10px; }
+  .btn { min-height: 42px; padding: 0 14px; font-size: 13.5px; }
 
-  .dashboard__title { margin-bottom: 22px; }
+  .wrap { padding: 0 14px; }
 
-  /* One card per row: the icon + figure pairing needs the width */
+  /* One card per row: the figure + disc pairing needs the width */
   .stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 
-  .stat { padding: 14px 16px; gap: 13px; border-radius: 16px; }
-  .stat__icon svg, .stat__icon--logo img { width: 42px; height: 42px; }
-  .stat__label { font-size: 13px; letter-spacing: .04em; }
-  .stat__value { font-size: 23px; gap: 6px; }
-  .stat__sub { font-size: 13.5px; }
+  .stat { padding: 16px 18px; gap: 13px; }
+  .stat__label { font-size: 11.5px; letter-spacing: .07em; }
+  .stat__value { font-size: 24px; gap: 6px; }
+  .stat__sub { font-size: 14.5px; }
 
-  /* Stack the two ecosystem blocks, with the rule turned across */
-  .eco { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 14px; margin-top: 20px; }
-  .eco__rule { width: auto; height: 2.5px; min-height: 0; justify-self: stretch; }
+  .stat__icon, .fact__icon { width: 42px; height: 42px; }
+  .stat__icon svg, .fact__icon svg { width: 21px; height: 21px; }
+
+  /* Stack the two ecosystem blocks */
+  .eco { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 32px; padding: 18px 16px 20px; }
   .eco__kicker { font-size: 12.5px; }
-  .eco__logo { height: 40px; }
-  .eco__logo--stonks { height: 48px; }
+  .eco__logo { height: 34px; }
+  .eco__logo--stonks { height: 30px; }
+
+  .foot { padding: 26px 16px 32px; }
 }
 
-/* Small phones: the row still holds brand + three buttons, so both sides give
-   up a few more pixels. Measured to fit at 320px. */
 @media (max-width: 420px) {
-  .topbar { padding: 12px 10px 4px; }
-  .brand { gap: 6px; }
-  .brand__mark { width: 30px; height: 30px; }
-  .brand__word { font-size: 13.5px; }
-
-  .topbar__links { gap: 5px; }
-  .btn { min-height: 32px; padding: 0 8px; font-size: 11.5px; gap: 5px; }
-  .btn--icon { padding: 0 9px; }
-  .btn__icon { width: 14px; height: 14px; }
-  .btn__icon--drawn { width: 16px; height: 16px; }
-  .btn__icon--copy { width: 13px; height: 13px; }
-  .btn__addr { font-size: 11.5px; }
+  .actions__inner { gap: 8px; }
+  .btn { min-height: 40px; padding: 0 11px; font-size: 12.5px; gap: 6px; }
+  .btn__icon { width: 15px; height: 15px; }
+  .stat__value { font-size: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

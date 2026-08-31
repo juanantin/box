@@ -9,18 +9,18 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '1',
+  version: '2',
 
   /* ---- Token ---------------------------------------------------------- */
 
-  // TODO — the token people buy. The CA button copies this, the chart button
+  // The token people buy — $BOX. The CA button copies this, the chart button
   // links to it, and DexScreener is searched by it. Nothing on the dashboard
-  // resolves until it is set.
-  contractAddress: '',
+  // resolves without it.
+  contractAddress: '0x4D2EfF441848E1C21a207fFbE90295e7Db801Fc2',
 
-  // TODO — the reward token, the one holders are paid in. Used to price
-  // "total distributed" in USD when the rewards source doesn't give a USD
-  // figure itself. Leave null if there is no separate reward token.
+  // TODO — $AMZN, the token holders are paid in. Used to price "total
+  // distributed" in USD when the rewards source doesn't give a USD figure
+  // itself, so the sub-line under that card stays blank until it is set.
   rewardTokenAddress: null,
 
   chain: 'base',    // DexScreener chain slug
@@ -52,9 +52,8 @@ window.SITE_CONFIG = {
     // Leave null to auto-build a DexScreener link from the contract address.
     chart: null,
 
-    // The two lockups in the footer panel. Change them in index.html too if
-    // the token launched somewhere else.
-    launchedIn: 'https://www.thestonks.exchange/',
+    // The two lockups in the footer panel — both hrefs are written from here.
+    launchedIn: 'https://www.thestonks.exchange/token/0x4D2EfF441848E1C21a207fFbE90295e7Db801Fc2',
     rewardsBy: 'https://www.stockify.finance/',
   },
 

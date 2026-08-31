@@ -1,20 +1,18 @@
-# Token site template
+# An Amazon Box — $BOX
 
-Single-page site for a token: a looping banner, a live dashboard, and an
-ecosystem footer. Static HTML/CSS/JS — no build step, no dependencies, no
-framework.
+Single-page site for $BOX: a looping banner, a live dashboard, and an ecosystem
+footer. Static HTML/CSS/JS — no build step, no dependencies, no framework.
 
-**This is a blank template.** Every token-specific value has been cleared, so
-out of the box it renders placeholder artwork, the wordmark "Your Token", and a
-row of em dashes where the figures go. [`SETUP.md`](SETUP.md) is the checklist
-that turns it into a real site; start there.
+The token is set in `config.js`; [`SETUP.md`](SETUP.md) is the checklist for
+pointing the site at a different one, and for the pieces that still need
+feeding (the X handle, and the fees/rewards figures).
 
 ```
 index.html            markup
 config.js             ← the only file you need to edit to point it at a token
 assets/css/styles.css
 assets/js/app.js
-images/               branding (placeholders — replace them)
+images/               branding — the mark, the banner clip and its poster
 data/rewards.json     protocol figures the dashboard reads
 scripts/              GitHub Actions indexer
 worker/               the same indexer as a Cloudflare Worker (optional)
@@ -22,34 +20,40 @@ worker/               the same indexer as a Cloudflare Worker (optional)
 
 ## What's on the page
 
-- **Top bar** — the brand lockup on the left; on the right an X button (its
-  `@handle` sits underneath as a caption), a chart button, and a
-  contract-address button that copies the CA to the clipboard and flashes a
-  `COPIED!` confirmation.
-- **Hero** — the banner clip, looping silently. The poster is the clip's own
-  first frame, so poster → playback is seamless. Viewers with
-  `prefers-reduced-motion: reduce` get the poster as a still and the video never
-  downloads.
-- **Dashboard** — six live cards on a pale blue band, opened and closed by a
-  drawn wave: total fees collected (in the token, with the USD figure beneath),
-  total rewards distributed (tokens plus USD), total holders, market cap,
-  liquidity and 24h volume. Values blink a `…` placeholder until the first load
-  resolves.
-- **Ecosystem** — a dashed panel holding two partner lockups, each one a link.
+- **Hero** — the banner clip, looping silently, carrying the wordmark. There is
+  no separate top bar, so the page opens on the artwork; the `<h1>` behind it is
+  screen-reader only. The poster is the clip's own first frame, so poster →
+  playback is seamless. Viewers with `prefers-reduced-motion: reduce` get the
+  poster as a still and the video never downloads.
+- **Actions** — three buttons under the banner: X, the chart, and a button that
+  copies the CA to the clipboard and flashes a `Copied!` confirmation beneath
+  itself.
+- **Dashboard** — six live cards: total fees collected, total $AMZN distributed
+  (tokens, with the USD figure beneath), number of holders, market cap,
+  liquidity and 24h volume. Money carries cents, counts do not. Values blink a
+  `…` placeholder until the first load resolves.
+- **Token facts** — supply, network and token symbol. Fixed properties, so they
+  are written in the markup rather than fetched.
+- **Ecosystem** — a panel holding two partner lockups, each one a link whose
+  href comes from `config.js`.
 
 ## Design
 
-Hand-lettered throughout, to sit with the drawn banner artwork:
-**Gloria Hallelujah** for display type (the wordmark, the DASHBOARD title) and
-**Architects Daughter** for everything else, both from Google Fonts. They are
-single-weight faces, so emphasis comes from size and colour — setting
-`font-weight: bold` on them buys a synthesised smear, not a bolder face.
+One face — **Inter**, from Google Fonts — across four weights: the design
+separates label from figure by weight and colour, so 400 through 700 all have
+to be loaded.
 
-The card icons and the band's wave edges are inline SVG drawn in the same hand.
-The waves stretch with `preserveAspectRatio="none"`, so their strokes use
-`vector-effect: non-scaling-stroke` to keep an even line at any width.
+The whole page sits on the banner's own cream. `--page` is sampled from the
+clip, which is what lets the hero run flush at the top with no seam; resample it
+if you swap the banner. The only accent is `--tan`, the cardboard the artwork is
+lettered in, and every card icon rides in a `--tan-soft` disc so the six read as
+one set. The isometric cubes behind everything are an inline SVG background
+tile, so they stay crisp at any zoom and cost no request.
 
-Light theme only, by design — the artwork is built for a white ground.
+Card icons are inline SVG on a shared stroke spec. Base keeps its own blue,
+being a network mark rather than part of the set.
+
+Light theme only, by design — the artwork is built for a warm light ground.
 
 ## Data sources
 
@@ -226,19 +230,19 @@ cd worker && npm test
 
 ## Notes
 
-- `favicon.ico` is generated from `images/favicon.png`, the tab mark: the
-  artwork is trimmed out of its empty margin and padded back to a square, or it
-  shrinks to nothing at 16px. `images/apple-touch-icon.png` and the two
-  `icon-*.png` manifest icons come from `images/logo.png` instead — the
-  apple-touch one has to be flattened onto white, because iOS renders a
-  transparent home-screen icon as black. Bump the `?v=` on whichever icon links
-  changed, so browsers drop the cached mark.
+- `favicon.ico`, `images/apple-touch-icon.png` and the two `icon-*.png`
+  manifest icons are all generated from `images/favicon.png`: the artwork is
+  trimmed out of its empty margin and padded back to a square, or it shrinks to
+  nothing at 16px. The apple-touch one is flattened onto white, because iOS
+  renders a transparent home-screen icon as black. Bump the `?v=` on the icon
+  links when the mark changes, so browsers drop the cached one.
 - `favicon.ico` sits at the repo root because browsers request `/favicon.ico` on
   their own, whatever the `<link>` tags say.
 - The hero clip is `images/box_banner.mp4`, 864×336 and audio-stripped. Its ratio is encoded twice: the
   `width`/`height` on the `<video>` and the hero's `aspect-ratio` in the
   stylesheet. Change both if your banner has a different shape, or
   `object-fit: cover` will crop it.
-- On mobile the top bar keeps its two-sided shape rather than stacking — brand
-  left, three buttons on one line right, down to 320px. The `@handle` caption and
-  the `CA:` tag are dropped below 620px to buy that width.
+- The three action buttons stay on one line down to 320px, shedding padding and
+  type size as they go; below 620px the cards drop to one per row and the hero
+  runs edge to edge, overscanning the banner's own margins by 3% a side so it
+  reads as large as the screen allows.

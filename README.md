@@ -235,7 +235,7 @@ cd worker && npm test
   changed, so browsers drop the cached mark.
 - `favicon.ico` sits at the repo root because browsers request `/favicon.ico` on
   their own, whatever the `<link>` tags say.
-- The hero clip is 800×368 and audio-stripped. Its ratio is encoded twice: the
+- The hero clip is `images/box_banner.mp4`, 864×336 and audio-stripped. Its ratio is encoded twice: the
   `width`/`height` on the `<video>` and the hero's `aspect-ratio` in the
   stylesheet. Change both if your banner has a different shape, or
   `object-fit: cover` will crop it.

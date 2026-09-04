@@ -339,11 +339,41 @@ a { color: inherit; text-decoration: none; }
 /* The sub-line's "$" prefix would sit oddly beside the dots */
 .stat__sub b:has(.dots)::before { content: none; }
 
-.note {
+/* Live-data legend. Discreet by design: it should be findable when someone
+   wonders how current a figure is, and invisible the rest of the time. */
+.legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin: 16px 0 0;
-  text-align: center;
-  font-size: 14px;
+  font-size: 12.5px;
+  letter-spacing: .01em;
   color: var(--muted);
+}
+
+.legend__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+/* Reading the chain right now */
+.legend.is-live .legend__dot {
+  background: #46a24b;
+  box-shadow: 0 0 0 0 rgba(70,162,75,.45);
+  animation: legend-pulse 2.4s infinite ease-out;
+}
+
+/* Showing what was last read, because something did not answer */
+.legend.is-stale .legend__dot { background: var(--tan); }
+
+@keyframes legend-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(70,162,75,.45); }
+  70%  { box-shadow: 0 0 0 6px rgba(70,162,75,0); }
+  100% { box-shadow: 0 0 0 0 rgba(70,162,75,0); }
 }
 
 /* ==========================================================================
@@ -566,6 +596,7 @@ a { color: inherit; text-decoration: none; }
   .stat__icon svg { width: 15px; height: 15px; }
   .stat__label { font-size: 10px; letter-spacing: .04em; }
   .stat__sub, .stat__sub--lead { white-space: nowrap; }
+  .legend { font-size: 11.5px; gap: 6px; }
   .stat__sub--lead { font-size: 15px; }
 }
 

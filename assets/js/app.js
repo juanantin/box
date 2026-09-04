@@ -728,7 +728,50 @@
      --------------------------------------------------------------------- */
 
   var note = document.getElementById('dash-note');
+  var legendText = document.getElementById('legend-text');
+
+  function clock(ms) {
+    var d = new Date(ms || Date.now());
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* One line under the cards, saying where the figures came from and how
+     current they are. `live` while something answered this load, `stale` while
+     the tiles are showing what was last read. */
+  function setLegend(state, text) {
+    if (!note) return;
+    note.className = 'legend is-' + state;
+    if (legendText) legendText.textContent = text;
+  }
   var lastStats = null;   // what the last load actually merged, for ?debug=1
+
+  /* The last figures that were successfully read, kept per browser.
+
+     A source that fails on this load — a rate-limited RPC, a phone that lost
+     signal mid-scan — should not blank a tile that was showing a real number
+     a minute ago. The remembered value stands in until something live
+     replaces it, which it does at the first opportunity: these are seeded at
+     a rank below every real source, so any answer at all outranks them. */
+  var STATS_KEY = 'box:stats:' + String(address).toLowerCase();
+
+  function readStats() {
+    try {
+      var raw = window.localStorage.getItem(STATS_KEY);
+      var c = raw ? JSON.parse(raw) : null;
+      return (c && c.values) ? c : null;
+    } catch (e) { return null; }        // private mode, or a corrupt entry
+  }
+
+  function writeStats(stats) {
+    var values = {};
+    METRICS.forEach(function (k) {
+      if (typeof stats[k] === 'number' && isFinite(stats[k])) values[k] = stats[k];
+    });
+    if (!Object.keys(values).length) return;
+    try {
+      window.localStorage.setItem(STATS_KEY, JSON.stringify({ at: Date.now(), values: values }));
+    } catch (e) { /* quota, private mode */ }
+  }
 
   function baseStats() {
     var s = CFG.stats || {};
@@ -786,7 +829,7 @@
      So each source paints as it lands, and a rank keeps "later sources win"
      true regardless of arrival order: a value is only overwritten by a source
      at least as authoritative as the one already holding it. */
-  var RANK = { dexscreener: 0, rewards: 1, rewardPrice: 2, chain: 3 };
+  var RANK = { remembered: -1, dexscreener: 0, rewards: 1, rewardPrice: 2, chain: 3 };
 
   function load() {
     sourceLog = [];
@@ -795,6 +838,17 @@
     var owner = {};            // metric -> rank of the source that supplied it
     var rewardPrice = null;
     var live = 0;
+
+    // Start from what was last read, so a failing source shows its previous
+    // figure rather than an em dash. Anything live overwrites it immediately.
+    var remembered = readStats();
+    if (remembered) {
+      Object.keys(remembered.values).forEach(function (k) {
+        if (typeof stats[k] !== 'number') { stats[k] = remembered.values[k]; owner[k] = RANK.remembered; }
+      });
+      setLegend('stale', 'Last read ' + clock(remembered.at));
+      paint(stats);
+    }
 
     /* Both dollar figures, when a source gave the token amount but not its
        value. The scan can only ever report tokens — a price is not on chain. */
@@ -827,6 +881,7 @@
       }
       derive();
       lastStats = stats;
+      writeStats(stats);
       paint(stats);
     }
 
@@ -850,10 +905,9 @@
 
       // Only worth saying something when the data ISN'T live — a timestamp on
       // a working dashboard is noise.
-      if (note) {
-        note.textContent = live ? '' : 'Live data unavailable — retrying.';
-        note.hidden = !!live;
-      }
+      if (live) setLegend('live', 'Live from Base · ' + clock(Date.now()));
+      else if (remembered) setLegend('stale', 'Last read ' + clock(remembered.at) + ' · reconnecting');
+      else setLegend('down', 'Live data unavailable · retrying');
       renderDebug();
     });
   }

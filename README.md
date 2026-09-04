@@ -204,9 +204,10 @@ Any static host works — GitHub Pages, Netlify, Vercel, Cloudflare Pages, S3.
 On GitHub Pages: Settings ▸ Pages ▸ deploy from `main`.
 
 `index.html` loads `config.js` and `app.js` with a `?v=` cache buster, and
-`config.js` carries a matching `version`. **Bump both on every deploy** — a CDN
-will otherwise keep serving the previous JS for hours after the HTML updates,
-which looks exactly like a push that never landed.
+`config.js` carries a matching `version`. **Run `node scripts/stamp.mjs` before
+every deploy** — it moves all of them together. Skip it and a CDN keeps serving
+the previous JS for hours after the HTML updates, which looks exactly like a
+push that never landed.
 
 To check what a browser actually has, load the site with `?debug=1`: the first
 line of the panel is the build stamp. If it is not the version you just pushed,

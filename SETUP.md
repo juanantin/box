@@ -26,8 +26,8 @@ everything after that is polish and live figures.
   `images/icon-512.png` from it, trimming the artwork out of its empty margin
   and padding it back to a square first — untrimmed, it shrinks to nothing at
   16px. The apple-touch one has to be flattened onto white, because iOS renders
-  a transparent home-screen icon as black. Bump the `?v=` on the icon links in
-  `index.html` so browsers drop the cached mark.
+  a transparent home-screen icon as black. Then run `node scripts/stamp.mjs`,
+  which moves every `?v=` in `index.html` so browsers drop the cached mark.
 - `images/box_banner.mp4` and `images/box_banner_poster.webp` — the banner clip
   and its poster. **The poster must be the clip's own first frame**, or the
   hand-off from poster to playback jumps. Strip the audio track; the video is

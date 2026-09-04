@@ -1,4 +1,4 @@
-# STONKEX rewards indexer
+# Rewards indexer
 
 Sums `$REWARDS` flows on Base and serves them as the JSON the site reads, so
 "total fees collected" and "total $REWARDS distributed" stay current without
@@ -58,18 +58,26 @@ where RPC trouble shows up.
 
 ## ⚠ Verify the streams before trusting the numbers
 
-The addresses in `src/config.js` come from thestonks.exchange's own APIs, but
-**which flow is "fees" and which is "distributed" has not been confirmed against
-the contracts.** As written:
+The addresses in `src/config.js` come from thestonks.exchange's own APIs. Two
+mistakes here produce numbers that look plausible and are wrong by orders of
+magnitude, so both are worth re-checking whenever the config changes:
 
-- `distributed` — `$REWARDS` leaving `rewardsIndex` (`0xf01a4dab…51DE2E`).
-  If that contract serves other tokens as well, this over-counts.
-- `feesIn` — `$REWARDS` arriving at `feeLocker` (`0x71D1D363…f0A7f`). That
-  locker is shared by every coin on the platform, so this one almost certainly
-  over-counts as written. **Fix this first.**
+- **`feesIn` watches the reward token arriving at `rewardsIndex` — not at
+  `feeLocker`.** The locker is shared by every coin on the platform, so
+  pointing this stream at it sums the whole platform's fees rather than this
+  token's. On the first build that read 3,548,527 tokens against a true
+  77,672: a believable figure, which is what makes it dangerous.
+- **`paidOut` is everything leaving `rewardsIndex`, which includes the
+  protocol's cut** — it is not the "distributed" figure on its own.
+  `holderPayout()` is what the site reads: it subtracts the protocol's share
+  exactly when `PROTOCOL_ADDRESS` is set, and otherwise applies
+  `HOLDER_SHARE`, which must match the split the token's Stockify panel
+  publishes.
 
-Sanity-check `/debug`'s `rawTotals` against what thestonks.exchange shows for
-the token before pointing the site at the Worker. Adjust `STREAMS` in
+Sanity-check `/debug`'s `rawTotals` against what thestonks.exchange and
+stockify.finance publish for the token before pointing the site at the Worker —
+they should agree to the cent. If `distributed` comes out exactly equal to
+`feesIn`, the holder share is not being applied. Adjust `STREAMS` in
 `src/config.js`, then `POST /reset` to rescan.
 
 If `rewardsIndex` turns out to be verified on Basescan and exposes a cumulative

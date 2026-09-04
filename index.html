@@ -285,8 +285,9 @@
   <p class="foot__fine">Not financial advice. Crypto assets are volatile — do your own research.</p>
 </footer>
 
-<!-- ?v= is the cache buster: bump BUILD in both files on every deploy,
-     or a CDN will keep serving the previous config.js and app.js. -->
+<!-- ?v= is the cache buster: run `node scripts/stamp.mjs` on every deploy,
+     which moves every ?v= here and `version` in config.js together. Skip it
+     and a CDN keeps serving the previous config.js and app.js. -->
 <script src="config.js?v=3"></script>
 <script src="assets/js/app.js?v=3"></script>
 </body>

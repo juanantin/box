@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '3',
+  version: '4',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -18,10 +18,11 @@ window.SITE_CONFIG = {
   // resolves without it.
   contractAddress: '0x4D2EfF441848E1C21a207fFbE90295e7Db801Fc2',
 
-  // TODO — $AMZN, the token holders are paid in. Used to price "total
+  // $AMZN, the token holders are paid in — the quote side of the pair, per
+  // thestonks.exchange's /api/coins entry for $BOX. Used to price "total
   // distributed" in USD when the rewards source doesn't give a USD figure
-  // itself, so the sub-line under that card stays blank until it is set.
-  rewardTokenAddress: null,
+  // itself, so the sub-line under that card depends on it.
+  rewardTokenAddress: '0xb200000000000000000000d9192b6B456483C2E8',
 
   chain: 'base',    // DexScreener chain slug
   chainId: 8453,    // EVM chain id
@@ -38,9 +39,13 @@ window.SITE_CONFIG = {
      reports another token's market cap, liquidity and volume. Leave them null
      and the search by contract address is used instead: correct, if slower. */
   contracts: {
-    pool: null,
+    // From /api/coins. The pool is corroborated by DexScreener, which resolves
+    // the same pair from a search by contract address alone.
+    pool: '0x795cd8715CC2C939b1A921327F43bEFA5F7FC2c4',
     rewardPool: null,
-    feeLocker: null,
+    feeLocker: '0x71D1D363176723f85d98B8B430DF33cde89f0A7f',
+    // TODO — from /api/fee-routing?pairs=<token>:<feeLocker>. Read by the
+    // indexer, not by the page, so the site is unaffected until it is set.
     rewardsIndex: null,
   },
 

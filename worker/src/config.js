@@ -1,45 +1,52 @@
 /* ==========================================================================
-   What the indexer watches.
+   What the indexer watches — $BOX on Base.
    --------------------------------------------------------------------------
-   Everything in this file is a TODO. Until the addresses below are real, the
-   indexer has nothing to scan — which is why the "Index rewards" workflow
-   ships with its schedule commented out.
+   Addresses come from thestonks.exchange's /api/coins entry for the token.
+   The pool is corroborated by DexScreener, which resolves the same pair from
+   a search by contract address alone, and START_BLOCK agrees with the entry's
+   own created_at to within a block at Base's 2s cadence.
 
-   ⚠ Which on-chain flow represents "fees collected" versus "distributed"
-   differs per platform. Check /debug after the first sync and compare against
-   whatever panel the platform publishes before trusting the numbers — see
-   worker/README.md.
+   ⚠ STILL INCOMPLETE — the schedule in .github/workflows/index-rewards.yml
+   stays commented out until both of these are filled in:
+
+     rewardsIndex   from /api/fee-routing?pairs=<token>:<feeLocker>. Every
+                    stream below watches it, so on the placeholder the scan
+                    sums nothing.
+     HOLDER_SHARE   the split the token's Stockify panel publishes, or better,
+                    PROTOCOL_ADDRESS so the cut is subtracted exactly.
+
+   ⚠ And which on-chain flow is "fees collected" versus "distributed" is not
+   self-evident: check /debug against what thestonks.exchange and
+   stockify.finance publish for $BOX before trusting a number — the traps and
+   their magnitudes are in worker/README.md.
    ========================================================================== */
 
 export const CHAIN_ID = 8453;                    // Base
 
-/* The 0xAAAA… values below are deliberately fake — placeholders shaped like
-   addresses so the test suite has something well-formed to exercise. They
-   match nothing on chain: an indexer left on these values sums zero. */
-
 export const TOKENS = {
-  // TODO — the token people buy
-  STR: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-  // TODO — the reward token holders are paid in, 18 decimals
-  KEX: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+  // The token people buy — $BOX, 18 decimals
+  STR: '0x4D2EfF441848E1C21a207fFbE90295e7Db801Fc2',
+  // The reward token holders are paid in — $AMZN, the quote side of the pair
+  KEX: '0xb200000000000000000000d9192b6B456483C2E8',
 };
 
 export const CONTRACTS = {
-  // TODO — the trading pair
-  pool: '0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
-  // TODO — where trading fees accrue. Careful: on some platforms this is one
-  // locker shared by every token, in which case summing it gives you the whole
-  // platform's fees rather than yours.
-  feeLocker: '0xDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
-  // TODO — the distributor holders are actually paid from. This is the address
-  // the streams below watch.
+  // The trading pair
+  pool: '0x795cd8715CC2C939b1A921327F43bEFA5F7FC2c4',
+  // Where trading fees accrue. This locker is SHARED BY EVERY COIN on the
+  // platform — the same address served the previous token — so no stream may
+  // sum it: doing so reports the whole platform's fees as this token's.
+  feeLocker: '0x71D1D363176723f85d98B8B430DF33cde89f0A7f',
+  // TODO — the distributor holders are actually paid from, from
+  // /api/fee-routing?pairs=<token>:<feeLocker>. This is the address the
+  // streams below watch; the 0xEEEE… placeholder matches nothing on chain, so
+  // a run against it sums zero rather than something wrong.
   rewardsIndex: '0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
 };
 
-// TODO — the block the token launched at. Nothing relevant happened before it,
-// so the scan starts here rather than at genesis; leaving this at 0 means
-// scanning all of Base history, which will not finish.
-export const START_BLOCK = 0;
+// The block $BOX launched at, from /api/coins. Nothing relevant happened
+// before it, so the scan starts here rather than at genesis.
+export const START_BLOCK = 50704292;
 
 /* The three flows the totals are built from:
 
@@ -57,9 +64,10 @@ export const STREAMS = [
 ];
 
 /* Share of the outflow that reaches holders — the rest is the protocol's cut.
-   TODO: set it to whatever split the platform publishes. Better still, set
-   PROTOCOL_ADDRESS below and the protocol's share is subtracted exactly
-   instead, which survives any change to the percentage. */
+   TODO: 0.9 is the previous token's split, NOT $BOX's — read the real one off
+   the token's Stockify panel ("TO HOLDERS 90% · 10% protocol · 0% creator").
+   Better still, set PROTOCOL_ADDRESS below and the protocol's share is
+   subtracted exactly instead, which survives any change to the percentage. */
 export const HOLDER_SHARE = 0.9;
 export const PROTOCOL_ADDRESS = null;
 

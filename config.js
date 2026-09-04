@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '4',
+  version: '5',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -44,9 +44,9 @@ window.SITE_CONFIG = {
     pool: '0x795cd8715CC2C939b1A921327F43bEFA5F7FC2c4',
     rewardPool: null,
     feeLocker: '0x71D1D363176723f85d98B8B430DF33cde89f0A7f',
-    // TODO — from /api/fee-routing?pairs=<token>:<feeLocker>. Read by the
-    // indexer, not by the page, so the site is unaffected until it is set.
-    rewardsIndex: null,
+    // From /api/fee-routing, which reports this token's routing as
+    // "rewards". Read by the indexer, not by the page.
+    rewardsIndex: '0xa8516873A859F75c1C2A0EC904B52f9F78AF2629',
   },
 
   /* ---- Links ---------------------------------------------------------- */

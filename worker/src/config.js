@@ -37,11 +37,12 @@ export const CONTRACTS = {
   // platform — the same address served the previous token — so no stream may
   // sum it: doing so reports the whole platform's fees as this token's.
   feeLocker: '0x71D1D363176723f85d98B8B430DF33cde89f0A7f',
-  // TODO — the distributor holders are actually paid from, from
-  // /api/fee-routing?pairs=<token>:<feeLocker>. This is the address the
-  // streams below watch; the 0xEEEE… placeholder matches nothing on chain, so
-  // a run against it sums zero rather than something wrong.
-  rewardsIndex: '0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
+  // The distributor holders are paid from, from /api/fee-routing, which
+  // reports this token's routing as "rewards". Every stream below watches it.
+  // Note it is per-token — a different address from the previous token's —
+  // which is what makes summing it this token's flows rather than the
+  // platform's.
+  rewardsIndex: '0xa8516873A859F75c1C2A0EC904B52f9F78AF2629',
 };
 
 // The block $BOX launched at, from /api/coins. Nothing relevant happened

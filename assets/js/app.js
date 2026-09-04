@@ -262,7 +262,168 @@
     return (typeof n === 'number' && isFinite(n) && n > 0) ? n : null;
   }
 
+  /* ---------------------------------------------------------------------
+     Holders, counted from the chain
+     No explorer has a dependable count for a token days old: Blockscout 500s
+     or answers 0, GeckoTerminal knows only what it has indexed, Etherscan's
+     count needs a paid plan. So the browser derives it the same way the
+     indexer does — fold every Transfer of the token into a balance per
+     address, and count the addresses left holding something.
+
+     That is a lot of requests for one page load, so the scan is budgeted and
+     its progress cached: a load spends at most `maxCallsPerLoad` requests,
+     banks what it scanned, and the next load resumes from there. Until the
+     scan reaches the head it reports nothing — a partial fold has seen sends
+     whose matching receives are in blocks it has not read yet, so it
+     UNDER-counts. A dash beats a wrong number.
+     --------------------------------------------------------------------- */
+
+  // keccak256("Transfer(address,address,uint256)"), the topic every ERC-20
+  // emits. Filtering on it needs no ABI.
+  var TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+  var ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+  function rpcCall(url, method, params) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params || [] }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      if (j.error) throw new Error(j.error.message || 'rpc error');
+      return j.result;
+    });
+  }
+
+  /* The first endpoint that answers wins, and is used for the whole scan.
+     Public RPCs differ in how wide a getLogs range they allow, so mixing them
+     mid-scan would make the chunk size meaningless. */
+  function pickRpc(urls) {
+    return urls.reduce(function (chain, url) {
+      return chain.then(function (found) {
+        if (found) return found;
+        return rpcCall(url, 'eth_blockNumber').then(
+          function (hex) { return { url: url, head: parseInt(hex, 16) }; },
+          function (e) { log('holders:rpc', url, 'failed —', e.message); return null; }
+        );
+      });
+    }, Promise.resolve(null));
+  }
+
+  var CACHE_KEY = 'box:holders:' + address.toLowerCase();
+
+  function readCache(startBlock) {
+    try {
+      var raw = window.localStorage.getItem(CACHE_KEY);
+      var c = raw ? JSON.parse(raw) : null;
+      // A cache from a different start block describes a different history.
+      if (c && c.startBlock === startBlock && c.balances) return c;
+    } catch (e) { /* private mode, or a corrupt entry — rescan */ }
+    return { startBlock: startBlock, cursor: startBlock, balances: {} };
+  }
+
+  function writeCache(c) {
+    try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) { /* quota, private mode */ }
+  }
+
+  function foldTransfers(balances, logs) {
+    for (var i = 0; i < logs.length; i++) {
+      var t = logs[i].topics || [];
+      var data = logs[i].data;
+      if (!data || data === '0x') continue;
+      var value = BigInt(data);
+      if (value === 0n) continue;
+      var from = t[1] ? '0x' + String(t[1]).slice(-40).toLowerCase() : null;
+      var to = t[2] ? '0x' + String(t[2]).slice(-40).toLowerCase() : null;
+      // The zero address is not a holder, so mints and burns fall out here.
+      if (from && from !== ZERO_ADDRESS) balances[from] = (BigInt(balances[from] || '0') - value).toString();
+      if (to && to !== ZERO_ADDRESS) balances[to] = (BigInt(balances[to] || '0') + value).toString();
+    }
+    // Wallets that round-tripped back to nothing would otherwise accumulate in
+    // the cache forever, and every one of them is a byte of someone's quota.
+    for (var addr in balances) if (balances[addr] === '0') delete balances[addr];
+    return balances;
+  }
+
+  function countPositive(balances, exclude) {
+    var n = 0;
+    for (var addr in balances) {
+      if (exclude.indexOf(addr) !== -1) continue;
+      if (BigInt(balances[addr]) > 0n) n++;
+    }
+    return n;
+  }
+
+  function scanHolders(cfg) {
+    var oc = cfg.onchain || {};
+    var urls = oc.rpcUrls || [];
+    var startBlock = Number(oc.startBlock || CFG.launchBlock || 0);
+    if (!urls.length || !startBlock) { log('holders:onchain', 'no rpcUrls or startBlock'); return Promise.resolve(null); }
+
+    // The pool, the fee locker and the distributor hold supply without being
+    // holders in the sense the tile means.
+    var c = CFG.contracts || {};
+    var exclude = (oc.exclude || [c.pool, c.feeLocker, c.rewardsIndex])
+      .filter(Boolean).map(function (a) { return String(a).toLowerCase(); });
+
+    var budget = Number(oc.maxCallsPerLoad || 40);
+    var minSpan = Number(oc.minChunkSize || 1000);
+    var span = Number(oc.chunkSize || 10000);
+
+    return pickRpc(urls).then(function (node) {
+      if (!node) throw new Error('no RPC answered');
+
+      var head = node.head - Number(oc.confirmations || 5);   // a reorg must not bank totals
+      var cache = readCache(startBlock);
+      var cursor = Math.max(cache.cursor, startBlock);
+      var balances = cache.balances;
+      var calls = 0;
+
+      function step() {
+        if (cursor > head) return Promise.resolve(true);
+        if (calls >= budget) return Promise.resolve(false);
+
+        var end = Math.min(cursor + span - 1, head);
+        calls++;
+        return rpcCall(node.url, 'eth_getLogs', [{
+          address: address,
+          topics: [TRANSFER_TOPIC],
+          fromBlock: '0x' + cursor.toString(16),
+          toBlock: '0x' + end.toString(16),
+        }]).then(function (logs) {
+          foldTransfers(balances, logs || []);
+          cursor = end + 1;
+          return step();
+        }, function (err) {
+          // "range too large" is the node asking for smaller bites, not a failure.
+          if (/too large|range|limit|exceed|more than|block range/i.test(err.message) && span > minSpan) {
+            span = Math.max(minSpan, Math.floor(span / 2));
+            log('holders:onchain', 'narrowing to', span, 'blocks');
+            return step();
+          }
+          throw err;
+        });
+      }
+
+      return step().then(function (complete) {
+        writeCache({ startBlock: startBlock, cursor: cursor, balances: balances });
+        var behind = Math.max(0, head - cursor + 1);
+        log('holders:onchain', complete ? 'complete' : behind + ' blocks behind', 'in', calls, 'calls');
+        // A partial fold under-counts, so it is not published.
+        return complete ? positive(countPositive(balances, exclude)) : null;
+      });
+    });
+  }
+
   var HOLDER_PROVIDERS = {
+
+    /* The chain itself. First in the chain because it is the only source that
+       is right by construction rather than by an indexer's luck. */
+    onchain: function (cfg) {
+      return softly('holders:onchain', scanHolders(cfg));
+    },
 
     // Free, no key. Ships the field under different names across versions, and
     // on a fresh token it sometimes only appears on the counters route.

@@ -87,9 +87,25 @@ preferred over `fdv`. Override the pool with `sources.dexscreener.pairAddress`.
 
 ### Holders
 
-DexScreener does not report holder counts, and no single explorer is dependable
-for a freshly launched token. So `sources.holders.providers` lists several,
-tried **in order**, and the first to return a count above zero wins:
+DexScreener does not report holder counts, and no explorer is dependable for a
+freshly launched token — for $BOX, GeckoTerminal answered 21 against a project
+that had made 365 wallet payments, and Blockscout returned 500s. So the default
+provider is **`onchain`**, which does not ask anyone: it folds the token's own
+`Transfer` logs into a balance per address in the browser, exactly as the
+indexer does, and counts the addresses left holding something, less the pool,
+the fee locker and the rewards index.
+
+That scan is budgeted and cached. A load spends at most `maxCallsPerLoad`
+requests against the first RPC in `onchain.rpcUrls` that answers, banks its
+progress in `localStorage`, and the next load resumes. **The count is published
+only once the scan reaches the head** — a partial fold has seen sends whose
+matching receives are in unread blocks, so it under-counts, and a dash beats a
+wrong number. `holders` from `data/rewards.json` is merged last and wins, so
+running the indexer retires the client-side scan without a config change.
+
+The explorer providers below still work and can be chained after it by listing
+them in `sources.holders.providers`. They are tried **in order**, and the first
+to return a count above zero wins:
 
 | Provider | Key | Notes |
 |---|---|---|

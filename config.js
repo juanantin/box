@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '7',
+  version: '8',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -26,6 +26,10 @@ window.SITE_CONFIG = {
 
   chain: 'base',    // DexScreener chain slug
   chainId: 8453,    // EVM chain id
+
+  // The block $BOX launched at, from thestonks.exchange's /api/coins. The
+  // holder scan starts here; nothing relevant happened before it.
+  launchBlock: 50704292,
 
   /* Related contracts.
        pool         the trading pair — DexScreener is asked about THIS pool
@@ -103,15 +107,55 @@ window.SITE_CONFIG = {
 
        Set `enabled: false` to stop fetching holders here entirely. */
     holders: {
-      /* OFF. GeckoTerminal answered 21 for $BOX, which the project's own
-         figures contradict — 365 wallet payments across 5 rounds cannot come
-         from 21 holders — and Blockscout 500s on a token this new. An explorer
-         that has not indexed a token gives a number, not an answer, so the
-         tile shows an em dash until scripts/index-rewards.mjs supplies a count
-         from the token's own transfer history. Flip back to true to reinstate
-         the explorer chain. */
-      enabled: false,
-      providers: ['blockscout', 'geckoterminal', 'etherscan', 'moralis'],
+      enabled: true,
+
+      /* `onchain` ALONE, deliberately. It folds the token's own Transfer logs
+         into balances, exactly as the indexer does, so it is right by
+         construction rather than by an explorer's luck. The explorer providers
+         below still work — add 'blockscout', 'geckoterminal', 'etherscan' or
+         'moralis' here to chain them — but for $BOX they are worse than
+         nothing: GeckoTerminal answered 21, which the project's own figures
+         contradict (365 wallet payments across 5 rounds cannot come from 21
+         holders), and Blockscout 500s on a token this new. If no RPC answers,
+         the tile shows a dash, which beats a confident wrong number. */
+      providers: ['onchain'],
+
+      onchain: {
+        /* Tried in order; the first to answer runs the whole scan, since
+           public nodes differ in how wide a getLogs range they allow and
+           swapping mid-scan would make the chunk size meaningless. All three
+           are public, keyless and CORS-enabled. */
+        rpcUrls: [
+          'https://mainnet.base.org',
+          'https://base-rpc.publicnode.com',
+          'https://base.llamarpc.com',
+        ],
+
+        // Defaults to CFG.launchBlock; set it here to scan a shorter window.
+        startBlock: null,
+
+        chunkSize: 10000,      // halves itself if the node says the range is too wide
+        minChunkSize: 1000,
+        confirmations: 5,      // stay clear of a reorg
+
+        /* A page load spends at most this many requests, banks what it
+           scanned in localStorage, and the next load resumes. The count is
+           published only once the scan reaches the head: a partial fold has
+           seen sends whose receives are in unread blocks, so it under-counts.
+           ~200k blocks at 10k a request is ~20, well inside this. */
+        maxCallsPerLoad: 40,
+
+        /* The cost of a first scan grows with the token's history — roughly
+           43k blocks a day on Base, so ~20 requests a fortnight at the chunk
+           size above. Cached per browser, so it is paid once and then only
+           the new blocks are read. When it outgrows a page load, run the
+           indexer: `holders` from data/rewards.json is merged last and wins,
+           which retires this scan without any change here. */
+
+        // Defaults to contracts.pool, feeLocker and rewardsIndex — they hold
+        // supply without being holders.
+        exclude: null,
+      },
 
       blockscoutBase: 'https://base.blockscout.com',
       geckoterminalBase: 'https://api.geckoterminal.com/api/v2',

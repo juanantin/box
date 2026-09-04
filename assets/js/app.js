@@ -328,13 +328,18 @@
     try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) { /* quota, private mode */ }
   }
 
+  // Written as a call, not the `0n` literal: the literal is parsed even on a
+  // browser that has no BigInt, and a parse error here would cost every tile,
+  // not just this one. scanHolders checks for support before any of this runs.
+  var ZERO_BIG = typeof BigInt === 'function' ? BigInt(0) : null;
+
   function foldTransfers(balances, logs) {
     for (var i = 0; i < logs.length; i++) {
       var t = logs[i].topics || [];
       var data = logs[i].data;
       if (!data || data === '0x') continue;
       var value = BigInt(data);
-      if (value === 0n) continue;
+      if (value === ZERO_BIG) continue;
       var from = t[1] ? '0x' + String(t[1]).slice(-40).toLowerCase() : null;
       var to = t[2] ? '0x' + String(t[2]).slice(-40).toLowerCase() : null;
       // The zero address is not a holder, so mints and burns fall out here.
@@ -351,12 +356,16 @@
     var n = 0;
     for (var addr in balances) {
       if (exclude.indexOf(addr) !== -1) continue;
-      if (BigInt(balances[addr]) > 0n) n++;
+      if (BigInt(balances[addr]) > ZERO_BIG) n++;
     }
     return n;
   }
 
   function scanHolders(cfg) {
+    if (typeof BigInt !== 'function') {
+      log('holders:onchain', 'no BigInt in this browser — skipping the scan');
+      return Promise.resolve(null);
+    }
     var oc = cfg.onchain || {};
     var urls = oc.rpcUrls || [];
     var startBlock = Number(oc.startBlock || CFG.launchBlock || 0);
@@ -667,37 +676,67 @@
     box.textContent = head + lines + '\n\nvalues\n' + merged;
   }
 
+  /* Sources rank rather than queue. They used to be merged in array order at
+     the end of one Promise.all, which meant nothing was painted until the
+     slowest finished — and the holder scan can be tens of requests. On a
+     phone that was a page of dashes for half a minute while the fees, read
+     from a same-origin file in milliseconds, sat waiting behind it.
+
+     So each source paints as it lands, and a rank keeps "later sources win"
+     true regardless of arrival order: a value is only overwritten by a source
+     at least as authoritative as the one already holding it. */
+  var RANK = { dexscreener: 0, holders: 1, rewardPrice: 2, rewards: 3 };
+
   function load() {
     sourceLog = [];
-    // Order matters: later sources override earlier ones.
-    return Promise.all([
-      sourceDexScreener(),
-      sourceHolders(),
-      sourceRewardPrice(),
-      sourceRewards(),
-    ]).then(function (results) {
-      var stats = baseStats();
-      var live = 0;
-      var rewardPrice = null;
 
-      results.forEach(function (part) {
-        if (!part) return;
-        if (part._rewardPrice) { rewardPrice = part._rewardPrice; return; }
-        var got = false;
-        Object.keys(part).forEach(function (k) {
-          if (typeof part[k] === 'number' && isFinite(part[k])) { stats[k] = part[k]; got = true; }
-        });
-        if (got) live++;
-      });
+    var stats = baseStats();
+    var owner = {};            // metric -> rank of the source that supplied it
+    var rewardPrice = null;
+    var live = 0;
 
-      // Derive the USD value of distributed rewards if nothing supplied one.
-      if (stats.distributedUsd === null && rewardPrice !== null && typeof stats.distributed === 'number') {
-        stats.distributedUsd = stats.distributed * rewardPrice;
+    // The USD value of distributed rewards, when no source gave one outright.
+    function derive() {
+      if (rewardPrice === null || typeof stats.distributed !== 'number') return;
+      if (owner.distributedUsd !== undefined) return;      // a source answered
+      stats.distributedUsd = stats.distributed * rewardPrice;
+    }
+
+    function absorb(rank, part) {
+      if (part) {
+        if (part._rewardPrice) {
+          rewardPrice = part._rewardPrice;
+        } else {
+          var got = false;
+          Object.keys(part).forEach(function (k) {
+            var v = part[k];
+            if (typeof v !== 'number' || !isFinite(v)) return;
+            if (owner[k] !== undefined && owner[k] > rank) return;   // outranked
+            stats[k] = v;
+            owner[k] = rank;
+            got = true;
+          });
+          if (got) live++;
+        }
       }
-
-      log('merged', stats);
+      derive();
       lastStats = stats;
       paint(stats);
+    }
+
+    var jobs = [
+      [RANK.dexscreener, sourceDexScreener()],
+      [RANK.holders, sourceHolders()],
+      [RANK.rewardPrice, sourceRewardPrice()],
+      [RANK.rewards, sourceRewards()],
+    ];
+
+    jobs.forEach(function (job) {
+      job[1].then(function (part) { absorb(job[0], part); });
+    });
+
+    return Promise.all(jobs.map(function (job) { return job[1]; })).then(function () {
+      log('merged', stats);
 
       // Only worth saying something when the data ISN'T live — a timestamp on
       // a working dashboard is noise.

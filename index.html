@@ -18,18 +18,28 @@
      own, regardless of these tags. Every icon is generated from
      images/favicon.png — the Apple one has to be flattened onto white, because
      iOS renders a transparent home-screen icon as black. -->
-<link rel="icon" href="favicon.ico?v=8" sizes="any">
-<link rel="icon" type="image/png" href="images/favicon.png?v=8">
-<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=8">
-<link rel="manifest" href="site.webmanifest?v=8">
+<link rel="icon" href="favicon.ico?v=9" sizes="any">
+<link rel="icon" type="image/png" href="images/favicon.png?v=9">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=9">
+<link rel="manifest" href="site.webmanifest?v=9">
 
 <!-- One face, four weights: the design separates label from figure by weight
-     and colour, so the family has to carry 400 through 700. -->
+     and colour, so the family has to carry 400 through 700.
+
+     Loaded WITHOUT blocking: a pending stylesheet holds up script execution,
+     so a slow or blocked fonts.googleapis.com used to stall the dashboard
+     itself — measured at 12.8 seconds before app.js ran at all, on a page
+     whose figures were otherwise a same-origin file away. media="print"
+     makes the fetch non-blocking; onload promotes it once it lands, and the
+     URL already says display=swap, so text is readable in the fallback stack
+     from the first frame either way. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
 
-<link rel="stylesheet" href="assets/css/styles.css?v=8">
+<link rel="stylesheet" href="assets/css/styles.css?v=9">
 </head>
 <body>
 
@@ -289,7 +299,7 @@
 <!-- ?v= is the cache buster: run `node scripts/stamp.mjs` on every deploy,
      which moves every ?v= here and `version` in config.js together. Skip it
      and a CDN keeps serving the previous config.js and app.js. -->
-<script src="config.js?v=8"></script>
-<script src="assets/js/app.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="assets/js/app.js?v=9"></script>
 </body>
 </html>

@@ -320,13 +320,16 @@
   }
 
   var CACHE_KEY = 'box:holders:' + address.toLowerCase();
+  var CACHE_VERSION = 2;    // bump when the cached shape changes
 
   function readCache(startBlock) {
     try {
       var raw = window.localStorage.getItem(CACHE_KEY);
       var c = raw ? JSON.parse(raw) : null;
-      // A cache from a different start block describes a different history.
-      if (c && c.startBlock === startBlock && c.balances) return c;
+      // A cache from a different start block describes a different history,
+      // and one from an older shape would hand a string where the flow totals
+      // are now a map of token -> amount. Either way: rescan.
+      if (c && c.v === CACHE_VERSION && c.startBlock === startBlock && c.balances) return c;
     } catch (e) { /* private mode, or a corrupt entry — rescan */ }
     return { startBlock: startBlock, cursor: startBlock, balances: {} };
   }
@@ -374,13 +377,26 @@
     return Number(v / base) + Number(v % base) / Number(base);
   }
 
-  function sumTransfers(logs) {
-    var total = ZERO_BIG;
+  /* Sum by the token that emitted each log. The distributor may see more than
+     one token — a stray airdrop, a wrapped leg — so they are kept apart and
+     the dominant one is picked at the end rather than added together. */
+  function sumByToken(into, logs) {
     for (var i = 0; i < (logs || []).length; i++) {
       var d = logs[i].data;
-      if (d && d !== '0x') total += BigInt(d);
+      if (!d || d === '0x') continue;
+      var token = String(logs[i].address || '').toLowerCase();
+      into[token] = (BigInt(into[token] || '0') + BigInt(d)).toString();
     }
-    return total;
+    return into;
+  }
+
+  // The token with the largest inflow is the one the fees are denominated in.
+  function dominant(totals) {
+    var best = null;
+    for (var t in totals) {
+      if (best === null || BigInt(totals[t]) > BigInt(totals[best])) best = t;
+    }
+    return best;
   }
 
   /* One walk of the chain, three questions asked of every window:
@@ -428,8 +444,8 @@
       var cache = readCache(startBlock);
       var cursor = Math.max(cache.cursor, startBlock);
       var balances = cache.balances;
-      var feesIn = BigInt(cache.feesIn || '0');
-      var paidOut = BigInt(cache.paidOut || '0');
+      var feesIn = cache.feesIn || {};      // token -> base units, as strings
+      var paidOut = cache.paidOut || {};
       var calls = 0;
 
       function window_(from, to) {
@@ -441,13 +457,20 @@
           }]),
         ];
         if (wantFlows) {
+          /* Deliberately NOT filtered by token address. Naming the token here
+             is what produced a confident zero: filter on the wrong one and
+             every window matches nothing, which sums to nothing and looks
+             like a real total. The `to`/`from` topic is selective enough on
+             its own — almost nothing touches a distributor — so the logs come
+             back carrying their own token in `address`, and the reward token
+             is read off them instead of asserted. */
           asks.push(rpcCall(node.url, 'eth_getLogs', [{
-            address: reward, topics: [TRANSFER_TOPIC, null, addressTopic(index)],
+            topics: [TRANSFER_TOPIC, null, addressTopic(index)],
             fromBlock: range.fromBlock, toBlock: range.toBlock,
           }]));
           // A trailing null is dropped: some nodes reject a filter ending in one.
           asks.push(rpcCall(node.url, 'eth_getLogs', [{
-            address: reward, topics: [TRANSFER_TOPIC, addressTopic(index)],
+            topics: [TRANSFER_TOPIC, addressTopic(index)],
             fromBlock: range.fromBlock, toBlock: range.toBlock,
           }]));
         }
@@ -463,8 +486,8 @@
         return window_(cursor, end).then(function (res) {
           foldTransfers(balances, res[0] || []);
           if (wantFlows) {
-            feesIn += sumTransfers(res[1]);
-            paidOut += sumTransfers(res[2]);
+            sumByToken(feesIn, res[1]);
+            sumByToken(paidOut, res[2]);
           }
           cursor = end + 1;
           return step();
@@ -481,8 +504,8 @@
 
       return step().then(function (complete) {
         writeCache({
-          startBlock: startBlock, cursor: cursor, balances: balances,
-          feesIn: feesIn.toString(), paidOut: paidOut.toString(),
+          v: CACHE_VERSION, startBlock: startBlock, cursor: cursor,
+          balances: balances, feesIn: feesIn, paidOut: paidOut,
         });
         var behind = Math.max(0, head - cursor + 1);
         log('chain', complete ? 'complete' : behind + ' blocks behind', 'in', calls, 'calls');
@@ -494,10 +517,34 @@
         var out = {};
         var holders = positive(countPositive(balances, exclude));
         if (holders !== null) out.holders = holders;
+
         if (wantFlows) {
-          out.feesTokens = toTokens(feesIn, 18);
-          // Not the whole outflow — that carries the protocol's cut.
-          out.distributed = toTokens(paidOut, 18) * holderShare;
+          var token = dominant(feesIn) || dominant(paidOut);
+          if (token) {
+            out._rewardToken = token;
+            out.feesTokens = toTokens(BigInt(feesIn[token] || '0'), 18);
+            // Not the whole outflow — that carries the protocol's cut.
+            out.distributed = toTokens(BigInt(paidOut[token] || '0'), 18) * holderShare;
+            log('chain', 'flows are in', token,
+                '| in', out.feesTokens, '| to holders', out.distributed);
+            if (String(reward).toLowerCase() !== token) {
+              log('chain', 'NOTE: config rewardTokenAddress is', reward, 'but the chain says', token);
+              /* Price the token that actually moved. Without this the dollar
+                 figures wait on a config change, and the tiles carry a token
+                 amount nobody can size. */
+              return dexByToken(token).then(function (pair) {
+                var p = pair ? num(pair.priceUsd) : null;
+                if (p !== null) { out._rewardPrice = p; out._priceToken = token; }
+                return out;
+              }, function () { return out; });
+            }
+          } else {
+            /* Nothing at all reached the distributor in this range. That is
+               not a zero — it is silence, and a zero on the tile would be a
+               confident wrong answer. Left unset, so the previous figure or a
+               dash stands instead. */
+            log('chain', 'no transfers in or out of', index, '— reporting nothing rather than 0');
+          }
         }
         return Object.keys(out).length ? out : null;
       });
@@ -657,11 +704,12 @@
       if (usd !== null && native !== null && native > 0) {
         var implied = usd / native;
         log('rewardPrice', 'from the pool:', usd, '/', native, '=', implied);
-        return { _rewardPrice: implied };
+        return { _rewardPrice: implied, _priceToken: String(CFG.rewardTokenAddress).toLowerCase() };
       }
       return dexPair(CFG.rewardTokenAddress, (CFG.contracts || {}).rewardPool).then(function (own) {
         var price = own ? num(own.priceUsd) : null;
-        return price === null ? null : { _rewardPrice: price };
+        return price === null ? null
+          : { _rewardPrice: price, _priceToken: String(CFG.rewardTokenAddress).toLowerCase() };
       });
     });
   }
@@ -752,7 +800,10 @@
      a minute ago. The remembered value stands in until something live
      replaces it, which it does at the first opportunity: these are seeded at
      a rank below every real source, so any answer at all outranks them. */
-  var STATS_KEY = 'box:stats:' + String(address).toLowerCase();
+  /* Versioned: browsers that loaded the build which reported a zero for the
+     flows have that zero remembered, and it would be shown until something
+     live replaced it. A new key drops it. */
+  var STATS_KEY = 'box:stats:v2:' + String(address).toLowerCase();
 
   function readStats() {
     try {
@@ -811,13 +862,20 @@
 
     /* Then the merged result, metric by metric. A source can answer "ok" and
        still leave a card empty, so the panel has to show both ends. */
+    var token = lastStats && lastStats._rewardToken;
+    var tokenLine = token
+      ? '\n\nfees are paid in\n  ' + token +
+        (CFG.rewardTokenAddress && token !== String(CFG.rewardTokenAddress).toLowerCase()
+          ? '\n  config says ' + CFG.rewardTokenAddress + '  <- MISMATCH' : '  (matches config)')
+      : '';
+
     var merged = METRICS.map(function (key) {
       var v = lastStats ? lastStats[key] : null;
       var shownAs = typeof v === 'number' && isFinite(v) ? (FORMATTERS[key] || amount)(v) : '—';
       return '  ' + (key + '                ').slice(0, 16) + shownAs;   // 'distributedUsd' is the longest
     }).join('\n');
 
-    box.textContent = head + lines + '\n\nvalues\n' + merged;
+    box.textContent = head + lines + tokenLine + '\n\nvalues\n' + merged;
   }
 
   /* Sources rank rather than queue. They used to be merged in array order at
@@ -837,6 +895,8 @@
     var stats = baseStats();
     var owner = {};            // metric -> rank of the source that supplied it
     var rewardPrice = null;
+    var detectedToken = null;   // what the chain says the fees are paid in
+    var priceToken = null;      // which token the price in hand belongs to
     var live = 0;
 
     // Start from what was last read, so a failing source shows its previous
@@ -854,6 +914,12 @@
        value. The scan can only ever report tokens — a price is not on chain. */
     function derive() {
       if (rewardPrice === null) return;
+      /* Only a price for the very token the figures are denominated in will
+         do. The pool's ratio prices the pair's quote, so if the chain says the
+         fees arrive in something else, that ratio is the wrong number — and a
+         wrong dollar figure is worse than none. */
+      var want = detectedToken || (CFG.rewardTokenAddress ? String(CFG.rewardTokenAddress).toLowerCase() : null);
+      if (want && priceToken && priceToken !== want) return;
       if (typeof stats.distributed === 'number' && owner.distributedUsd === undefined) {
         stats.distributedUsd = stats.distributed * rewardPrice;
       }
@@ -864,9 +930,12 @@
 
     function absorb(rank, part) {
       if (part) {
+        if (part._rewardToken) { detectedToken = part._rewardToken; stats._rewardToken = part._rewardToken; }
         if (part._rewardPrice) {
           rewardPrice = part._rewardPrice;
-        } else {
+          priceToken = part._priceToken || null;
+        }
+        if (!part._rewardPrice || part.feesTokens !== undefined) {
           var got = false;
           Object.keys(part).forEach(function (k) {
             var v = part[k];

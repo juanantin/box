@@ -202,7 +202,8 @@
       })[0] || null;
   }
 
-  var DEX = 'https://api.dexscreener.com/latest/dex/';
+  // Overridable so the whole pipeline can be exercised against a stub.
+  var DEX = CFG.dexBase || 'https://api.dexscreener.com/latest/dex/';
 
   /* Look a pair up by its own address. More dependable than the token search
      when a token trades against something other than the usual quotes — the
@@ -283,6 +284,12 @@
   var TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
   var ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
+  /* An indexed address parameter is stored as a 32-byte topic: 24 zeros then
+     the 20-byte address. That padding is what lets a node filter by party. */
+  function addressTopic(a) {
+    return '0x' + '0'.repeat(24) + String(a).toLowerCase().replace(/^0x/, '');
+  }
+
   function rpcCall(url, method, params) {
     return fetch(url, {
       method: 'POST',
@@ -361,23 +368,56 @@
     return n;
   }
 
-  function scanHolders(cfg) {
+  /* Base units are exact only as BigInt; convert once, here at the edge. */
+  function toTokens(v, decimals) {
+    var base = BigInt(10) ** BigInt(decimals || 18);
+    return Number(v / base) + Number(v % base) / Number(base);
+  }
+
+  function sumTransfers(logs) {
+    var total = ZERO_BIG;
+    for (var i = 0; i < (logs || []).length; i++) {
+      var d = logs[i].data;
+      if (d && d !== '0x') total += BigInt(d);
+    }
+    return total;
+  }
+
+  /* One walk of the chain, three questions asked of every window:
+
+       holders   every transfer of the token, folded into balances
+       feesIn    the reward token arriving at the rewards index
+       paidOut   the reward token leaving it
+
+     They share a cursor because they share a scan — asking them separately
+     would triple the walk. Within a window the three requests go out together,
+     so three calls cost one round trip of latency.
+
+     `feesIn` watches the REWARDS INDEX, never the fee locker: that locker is
+     shared by every coin on the platform, and summing it reports the whole
+     platform's fees as this token's. */
+  function scanChain(cfg) {
     if (typeof BigInt !== 'function') {
-      log('holders:onchain', 'no BigInt in this browser — skipping the scan');
+      log('chain', 'no BigInt in this browser — skipping the scan');
       return Promise.resolve(null);
     }
     var oc = cfg.onchain || {};
     var urls = oc.rpcUrls || [];
     var startBlock = Number(oc.startBlock || CFG.launchBlock || 0);
-    if (!urls.length || !startBlock) { log('holders:onchain', 'no rpcUrls or startBlock'); return Promise.resolve(null); }
+    if (!urls.length || !startBlock) { log('chain', 'no rpcUrls or startBlock'); return Promise.resolve(null); }
+
+    var c = CFG.contracts || {};
+    var reward = CFG.rewardTokenAddress;
+    var index = c.rewardsIndex;
+    var holderShare = Number(CFG.holderShare);
+    var wantFlows = !!(reward && index && isFinite(holderShare));
 
     // The pool, the fee locker and the distributor hold supply without being
     // holders in the sense the tile means.
-    var c = CFG.contracts || {};
     var exclude = (oc.exclude || [c.pool, c.feeLocker, c.rewardsIndex])
       .filter(Boolean).map(function (a) { return String(a).toLowerCase(); });
 
-    var budget = Number(oc.maxCallsPerLoad || 40);
+    var budget = Number(oc.maxCallsPerLoad || 120);
     var minSpan = Number(oc.minChunkSize || 1000);
     var span = Number(oc.chunkSize || 10000);
 
@@ -388,28 +428,51 @@
       var cache = readCache(startBlock);
       var cursor = Math.max(cache.cursor, startBlock);
       var balances = cache.balances;
+      var feesIn = BigInt(cache.feesIn || '0');
+      var paidOut = BigInt(cache.paidOut || '0');
       var calls = 0;
+
+      function window_(from, to) {
+        var range = { fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16) };
+        var asks = [
+          rpcCall(node.url, 'eth_getLogs', [{
+            address: address, topics: [TRANSFER_TOPIC],
+            fromBlock: range.fromBlock, toBlock: range.toBlock,
+          }]),
+        ];
+        if (wantFlows) {
+          asks.push(rpcCall(node.url, 'eth_getLogs', [{
+            address: reward, topics: [TRANSFER_TOPIC, null, addressTopic(index)],
+            fromBlock: range.fromBlock, toBlock: range.toBlock,
+          }]));
+          // A trailing null is dropped: some nodes reject a filter ending in one.
+          asks.push(rpcCall(node.url, 'eth_getLogs', [{
+            address: reward, topics: [TRANSFER_TOPIC, addressTopic(index)],
+            fromBlock: range.fromBlock, toBlock: range.toBlock,
+          }]));
+        }
+        calls += asks.length;
+        return Promise.all(asks);
+      }
 
       function step() {
         if (cursor > head) return Promise.resolve(true);
         if (calls >= budget) return Promise.resolve(false);
 
         var end = Math.min(cursor + span - 1, head);
-        calls++;
-        return rpcCall(node.url, 'eth_getLogs', [{
-          address: address,
-          topics: [TRANSFER_TOPIC],
-          fromBlock: '0x' + cursor.toString(16),
-          toBlock: '0x' + end.toString(16),
-        }]).then(function (logs) {
-          foldTransfers(balances, logs || []);
+        return window_(cursor, end).then(function (res) {
+          foldTransfers(balances, res[0] || []);
+          if (wantFlows) {
+            feesIn += sumTransfers(res[1]);
+            paidOut += sumTransfers(res[2]);
+          }
           cursor = end + 1;
           return step();
         }, function (err) {
           // "range too large" is the node asking for smaller bites, not a failure.
           if (/too large|range|limit|exceed|more than|block range/i.test(err.message) && span > minSpan) {
             span = Math.max(minSpan, Math.floor(span / 2));
-            log('holders:onchain', 'narrowing to', span, 'blocks');
+            log('chain', 'narrowing to', span, 'blocks');
             return step();
           }
           throw err;
@@ -417,21 +480,36 @@
       }
 
       return step().then(function (complete) {
-        writeCache({ startBlock: startBlock, cursor: cursor, balances: balances });
+        writeCache({
+          startBlock: startBlock, cursor: cursor, balances: balances,
+          feesIn: feesIn.toString(), paidOut: paidOut.toString(),
+        });
         var behind = Math.max(0, head - cursor + 1);
-        log('holders:onchain', complete ? 'complete' : behind + ' blocks behind', 'in', calls, 'calls');
-        // A partial fold under-counts, so it is not published.
-        return complete ? positive(countPositive(balances, exclude)) : null;
+        log('chain', complete ? 'complete' : behind + ' blocks behind', 'in', calls, 'calls');
+
+        // Nothing partial is published: a half-read history under-counts
+        // holders and under-states every total.
+        if (!complete) return null;
+
+        var out = {};
+        var holders = positive(countPositive(balances, exclude));
+        if (holders !== null) out.holders = holders;
+        if (wantFlows) {
+          out.feesTokens = toTokens(feesIn, 18);
+          // Not the whole outflow — that carries the protocol's cut.
+          out.distributed = toTokens(paidOut, 18) * holderShare;
+        }
+        return Object.keys(out).length ? out : null;
       });
     });
   }
 
   var HOLDER_PROVIDERS = {
 
-    /* The chain itself. First in the chain because it is the only source that
-       is right by construction rather than by an indexer's luck. */
+    /* The chain itself — the only source that is right by construction rather
+       than by an indexer's luck, and the only one that moves in real time. */
     onchain: function (cfg) {
-      return softly('holders:onchain', scanHolders(cfg));
+      return softly('chain:onchain', scanChain(cfg));
     },
 
     // Free, no key. Ships the field under different names across versions, and
@@ -501,8 +579,11 @@
         if (!fn) { log('holders', 'unknown provider ' + name); return null; }
         return fn(cfg);
       });
-    }, Promise.resolve(null)).then(function (n) {
-      return n ? { holders: n } : null;
+    }, Promise.resolve(null)).then(function (found) {
+      // `onchain` answers with holders AND the two flow totals; the explorer
+      // providers answer with a bare count.
+      if (!found) return null;
+      return typeof found === 'number' ? { holders: found } : found;
     });
   }
 
@@ -557,11 +638,31 @@
   }
 
   /* Price the reward token, to turn distributed tokens into USD. */
+  /* What one reward token is worth, which is the only part of the two dollar
+     figures that cannot come off the chain.
+
+     The token's OWN pair is the fallback, not the first choice: a reward token
+     that trades mainly as the quote side of this pool may not be the base of
+     any pair DexScreener indexes, and then the search comes back empty. But
+     this pool already prices it exactly — priceUsd is the token in dollars,
+     priceNative the same token in the quote — so their ratio is the quote's
+     dollar price, available whenever the pair itself resolves. */
   function sourceRewardPrice() {
     if (!CFG.rewardTokenAddress) return Promise.resolve(null);
-    return dexPair(CFG.rewardTokenAddress, (CFG.contracts || {}).rewardPool).then(function (pair) {
-      var price = pair ? num(pair.priceUsd) : null;
-      return price === null ? null : { _rewardPrice: price };
+    var pool = (SRC.dexscreener || {}).pairAddress || (CFG.contracts || {}).pool;
+
+    return dexPair(address, pool).then(function (pair) {
+      var usd = pair ? num(pair.priceUsd) : null;
+      var native = pair ? num(pair.priceNative) : null;
+      if (usd !== null && native !== null && native > 0) {
+        var implied = usd / native;
+        log('rewardPrice', 'from the pool:', usd, '/', native, '=', implied);
+        return { _rewardPrice: implied };
+      }
+      return dexPair(CFG.rewardTokenAddress, (CFG.contracts || {}).rewardPool).then(function (own) {
+        var price = own ? num(own.priceUsd) : null;
+        return price === null ? null : { _rewardPrice: price };
+      });
     });
   }
 
@@ -685,7 +786,7 @@
      So each source paints as it lands, and a rank keeps "later sources win"
      true regardless of arrival order: a value is only overwritten by a source
      at least as authoritative as the one already holding it. */
-  var RANK = { dexscreener: 0, holders: 1, rewardPrice: 2, rewards: 3 };
+  var RANK = { dexscreener: 0, rewards: 1, rewardPrice: 2, chain: 3 };
 
   function load() {
     sourceLog = [];
@@ -695,11 +796,16 @@
     var rewardPrice = null;
     var live = 0;
 
-    // The USD value of distributed rewards, when no source gave one outright.
+    /* Both dollar figures, when a source gave the token amount but not its
+       value. The scan can only ever report tokens — a price is not on chain. */
     function derive() {
-      if (rewardPrice === null || typeof stats.distributed !== 'number') return;
-      if (owner.distributedUsd !== undefined) return;      // a source answered
-      stats.distributedUsd = stats.distributed * rewardPrice;
+      if (rewardPrice === null) return;
+      if (typeof stats.distributed === 'number' && owner.distributedUsd === undefined) {
+        stats.distributedUsd = stats.distributed * rewardPrice;
+      }
+      if (typeof stats.feesTokens === 'number' && owner.fees === undefined) {
+        stats.fees = stats.feesTokens * rewardPrice;
+      }
     }
 
     function absorb(rank, part) {
@@ -724,11 +830,15 @@
       paint(stats);
     }
 
+    /* Rank, not order: data/rewards.json is a committed snapshot and goes
+       stale between pushes, so a completed chain scan — the same arithmetic,
+       read live — supersedes it. When no RPC answers, the snapshot is what
+       remains, which is the right way round. */
     var jobs = [
       [RANK.dexscreener, sourceDexScreener()],
-      [RANK.holders, sourceHolders()],
-      [RANK.rewardPrice, sourceRewardPrice()],
       [RANK.rewards, sourceRewards()],
+      [RANK.rewardPrice, sourceRewardPrice()],
+      [RANK.chain, sourceHolders()],
     ];
 
     jobs.forEach(function (job) {

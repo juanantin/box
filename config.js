@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '9',
+  version: '10',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -28,8 +28,15 @@ window.SITE_CONFIG = {
   chainId: 8453,    // EVM chain id
 
   // The block $BOX launched at, from thestonks.exchange's /api/coins. The
-  // holder scan starts here; nothing relevant happened before it.
+  // chain scan starts here; nothing relevant happened before it.
   launchBlock: 50704292,
+
+  /* Holders' share of what leaves the rewards index — the rest is the
+     protocol's cut, so the outflow is NOT the distributed figure on its own.
+     VERIFIED against $BOX's Stockify panel ("TO HOLDERS 90% · 10% protocol ·
+     0% creator") and its published totals: fees 0.2978 AMZNc × 0.9 = 0.2680,
+     which is exactly paid 0.2307 plus the 0.0373 still to be invested. */
+  holderShare: 0.9,
 
   /* Related contracts.
        pool         the trading pair — DexScreener is asked about THIS pool
@@ -143,14 +150,15 @@ window.SITE_CONFIG = {
            published only once the scan reaches the head: a partial fold has
            seen sends whose receives are in unread blocks, so it under-counts.
            ~200k blocks at 10k a request is ~20, well inside this. */
-        maxCallsPerLoad: 40,
+        maxCallsPerLoad: 120,
 
         /* The cost of a first scan grows with the token's history — roughly
            43k blocks a day on Base, so ~20 requests a fortnight at the chunk
            size above. Cached per browser, so it is paid once and then only
-           the new blocks are read. When it outgrows a page load, run the
-           indexer: `holders` from data/rewards.json is merged last and wins,
-           which retires this scan without any change here. */
+           the new blocks are read. Each window asks three questions — the
+           token's transfers, and the reward token in and out of the rewards
+           index — so it spends three of these per window, but they go out
+           together and cost one round trip. */
 
         // Defaults to contracts.pool, feeLocker and rewardsIndex — they hold
         // supply without being holders.
@@ -186,8 +194,10 @@ window.SITE_CONFIG = {
        enabled will quietly override the live market cap, liquidity and volume.
     */
     rewards: {
-      // On: data/rewards.json holds $BOX's own published fees and payout,
-      // read off its Stockify panel and reconciled against it.
+      /* On, but the file is empty: the page reads these off the chain now, and
+         this source is the fallback for when no RPC answers plus the channel
+         scripts/index-rewards.mjs publishes through. A completed chain scan
+         outranks it either way. */
       enabled: true,
 
       // A string, or an array of them — the first source with a number for a

@@ -1,26 +1,22 @@
 {
   "__doc": [
-    "Fees collected and reward tokens distributed, for the dashboard's first two",
-    "cards. No explorer knows these \u2014 they are protocol figures \u2014 so this file is",
-    "the simplest way to feed them: same-origin, no CORS, no infrastructure.",
+    "Fees collected and reward tokens distributed. EMPTY, and meant to stay that",
+    "way while the page reads them from the chain itself: app.js sums the reward",
+    "token in and out of the rewards index on every load, so nothing here has to",
+    "be maintained by hand.",
     "",
-    "THESE ARE HAND-ENTERED, read off $BOX's Stockify panel on 2026-09-04:",
-    "  fees collected   $77   / 0.2978 AMZNc",
-    "  paid to holders  $59   / 0.2307 AMZNc   (90% to holders, 10% protocol)",
-    "They reconcile: fees x 0.9 = 0.2680 = paid 0.2307 + waiting 0.0373.",
-    "",
-    "They are a SNAPSHOT and go stale. scripts/index-rewards.mjs overwrites this",
-    "whole file with scanned figures once it has run a full backfill; until then",
-    "these stand in. holders stays null on purpose \u2014 the panel does not publish",
-    "a holder count, and only the scan can produce one."
+    "It remains as the fallback for when no RPC answers, and as the file",
+    "scripts/index-rewards.mjs writes. Nulls render as em dashes, which is the",
+    "honest answer when nothing could be read \u2014 a number typed in here would",
+    "outlive whatever it described."
   ],
-  "totalFeesCollected": 77.0,
-  "totalFeesTokens": 0.2978,
-  "totalDistributed": 0.2307,
-  "totalDistributedUsd": 59.0,
+  "totalFeesCollected": null,
+  "totalFeesTokens": null,
+  "totalDistributed": null,
+  "totalDistributedUsd": null,
   "holders": null,
   "marketCap": null,
   "liquidity": null,
   "volume24h": null,
-  "updatedAt": "2026-09-04T00:00:00.000Z"
+  "updatedAt": null
 }

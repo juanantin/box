@@ -54,7 +54,7 @@ window.SITE_CONFIG = {
 
     // The two lockups in the footer panel — both hrefs are written from here.
     launchedIn: 'https://www.thestonks.exchange/token/0x4D2EfF441848E1C21a207fFbE90295e7Db801Fc2',
-    rewardsBy: 'https://www.stockify.finance/',
+    rewardsBy: 'https://www.stockify.finance/indices/0x185e51e2c41a2748234bffc0c5f3208a0ced456e',
   },
 
   /* ======================================================================

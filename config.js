@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '5',
+  version: '6',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -103,7 +103,14 @@ window.SITE_CONFIG = {
 
        Set `enabled: false` to stop fetching holders here entirely. */
     holders: {
-      enabled: true,
+      /* OFF. GeckoTerminal answered 21 for $BOX, which the project's own
+         figures contradict — 365 wallet payments across 5 rounds cannot come
+         from 21 holders — and Blockscout 500s on a token this new. An explorer
+         that has not indexed a token gives a number, not an answer, so the
+         tile shows an em dash until scripts/index-rewards.mjs supplies a count
+         from the token's own transfer history. Flip back to true to reinstate
+         the explorer chain. */
+      enabled: false,
       providers: ['blockscout', 'geckoterminal', 'etherscan', 'moralis'],
 
       blockscoutBase: 'https://base.blockscout.com',
@@ -135,8 +142,9 @@ window.SITE_CONFIG = {
        enabled will quietly override the live market cap, liquidity and volume.
     */
     rewards: {
-      // Off until data/rewards.json actually holds this token's numbers.
-      enabled: false,
+      // On: data/rewards.json holds $BOX's own published fees and payout,
+      // read off its Stockify panel and reconciled against it.
+      enabled: true,
 
       // A string, or an array of them — the first source with a number for a
       // metric wins, so put live endpoints in front of the committed file:

@@ -4,19 +4,23 @@
     "cards. No explorer knows these \u2014 they are protocol figures \u2014 so this file is",
     "the simplest way to feed them: same-origin, no CORS, no infrastructure.",
     "",
-    "EMPTY ON PURPOSE. Nulls render as em dashes on the page. Either fill them in",
-    "by hand, or point scripts/index-rewards.mjs at your contracts and let the",
-    "'Index rewards' workflow rewrite this file on a schedule.",
+    "THESE ARE HAND-ENTERED, read off $BOX's Stockify panel on 2026-09-04:",
+    "  fees collected   $77   / 0.2978 AMZNc",
+    "  paid to holders  $59   / 0.2307 AMZNc   (90% to holders, 10% protocol)",
+    "They reconcile: fees x 0.9 = 0.2680 = paid 0.2307 + waiting 0.0373.",
     "",
-    "Keys are plain numbers, not strings, and not pre-formatted."
+    "They are a SNAPSHOT and go stale. scripts/index-rewards.mjs overwrites this",
+    "whole file with scanned figures once it has run a full backfill; until then",
+    "these stand in. holders stays null on purpose \u2014 the panel does not publish",
+    "a holder count, and only the scan can produce one."
   ],
-  "totalFeesCollected": null,
-  "totalFeesTokens": null,
-  "totalDistributed": null,
-  "totalDistributedUsd": null,
+  "totalFeesCollected": 77.0,
+  "totalFeesTokens": 0.2978,
+  "totalDistributed": 0.2307,
+  "totalDistributedUsd": 59.0,
   "holders": null,
   "marketCap": null,
   "liquidity": null,
   "volume24h": null,
-  "updatedAt": null
+  "updatedAt": "2026-09-04T00:00:00.000Z"
 }

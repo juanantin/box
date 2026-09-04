@@ -65,10 +65,11 @@ export const STREAMS = [
 ];
 
 /* Share of the outflow that reaches holders — the rest is the protocol's cut.
-   TODO: 0.9 is the previous token's split, NOT $BOX's — read the real one off
-   the token's Stockify panel ("TO HOLDERS 90% · 10% protocol · 0% creator").
-   Better still, set PROTOCOL_ADDRESS below and the protocol's share is
-   subtracted exactly instead, which survives any change to the percentage. */
+   VERIFIED for $BOX: its Stockify panel reads "TO HOLDERS 90% · 10% protocol ·
+   0% creator", and the published figures agree with it exactly — fees 0.2978
+   AMZNc × 0.9 = 0.2680 = paid 0.2307 + 0.0373 still waiting to be invested.
+   Still worth setting PROTOCOL_ADDRESS if the protocol's address turns up: the
+   cut is then subtracted exactly and survives the percentage changing. */
 export const HOLDER_SHARE = 0.9;
 export const PROTOCOL_ADDRESS = null;
 

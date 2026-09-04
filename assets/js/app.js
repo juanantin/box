@@ -235,6 +235,14 @@
       if (mc !== null) out.marketCap = mc;
       if (pair.liquidity && num(pair.liquidity.usd) !== null) out.liquidity = num(pair.liquidity.usd);
       if (pair.volume && num(pair.volume.h24) !== null) out.volume24h = num(pair.volume.h24);
+
+      /* A pair can resolve while carrying none of the three figures, which
+         reads as "ok" above and as three em dashes on the page. Log what was
+         actually extracted so the panel can tell those two cases apart. */
+      sourceLog.push({
+        name: 'dexscreener:fields (' + (pair.pairAddress || pair.dexId || 'pair') + ')',
+        ok: true, empty: !Object.keys(out).length, value: out,
+      });
       return out;
     });
   }
@@ -443,6 +451,7 @@
      --------------------------------------------------------------------- */
 
   var note = document.getElementById('dash-note');
+  var lastStats = null;   // what the last load actually merged, for ?debug=1
 
   function baseStats() {
     var s = CFG.stats || {};
@@ -475,10 +484,20 @@
     var head = 'build ' + (CFG.version || 'unknown') +
       '  ·  ' + new Date().toLocaleTimeString() + '\n\n';
 
-    box.textContent = head + sourceLog.map(function (s) {
+    var lines = sourceLog.map(function (s) {
       return (s.ok ? (s.empty ? '· empty  ' : '✓ ok     ') : '✗ failed ') +
         s.name + (s.ok ? '' : '  — ' + s.error);
     }).join('\n') || 'no sources ran';
+
+    /* Then the merged result, metric by metric. A source can answer "ok" and
+       still leave a card empty, so the panel has to show both ends. */
+    var merged = METRICS.map(function (key) {
+      var v = lastStats ? lastStats[key] : null;
+      var shownAs = typeof v === 'number' && isFinite(v) ? (FORMATTERS[key] || amount)(v) : '—';
+      return '  ' + (key + '                ').slice(0, 16) + shownAs;   // 'distributedUsd' is the longest
+    }).join('\n');
+
+    box.textContent = head + lines + '\n\nvalues\n' + merged;
   }
 
   function load() {
@@ -510,6 +529,7 @@
       }
 
       log('merged', stats);
+      lastStats = stats;
       paint(stats);
 
       // Only worth saying something when the data ISN'T live — a timestamp on

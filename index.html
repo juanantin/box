@@ -18,10 +18,10 @@
      own, regardless of these tags. Every icon is generated from
      images/favicon.png — the Apple one has to be flattened onto white, because
      iOS renders a transparent home-screen icon as black. -->
-<link rel="icon" href="favicon.ico?v=6" sizes="any">
-<link rel="icon" type="image/png" href="images/favicon.png?v=6">
-<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=6">
-<link rel="manifest" href="site.webmanifest?v=6">
+<link rel="icon" href="favicon.ico?v=7" sizes="any">
+<link rel="icon" type="image/png" href="images/favicon.png?v=7">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=7">
+<link rel="manifest" href="site.webmanifest?v=7">
 
 <!-- One face, four weights: the design separates label from figure by weight
      and colour, so the family has to carry 400 through 700. -->
@@ -29,7 +29,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="assets/css/styles.css?v=6">
+<link rel="stylesheet" href="assets/css/styles.css?v=7">
 </head>
 <body>
 
@@ -113,27 +113,12 @@
   <!-- ===================== DASHBOARD ===================== -->
   <section class="stats" id="stats" aria-label="Live token stats">
 
-    <!-- Total fees collected -->
-    <article class="stat" data-metric="fees">
-      <div class="stat__body">
-        <h2 class="stat__label">Total fees collected</h2>
-        <p class="stat__value"><span data-value="fees"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></span></p>
-      </div>
-      <span class="stat__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="8.6"/>
-          <path d="M14.6 9.4c-.5-.9-1.5-1.4-2.7-1.4-1.5 0-2.5.8-2.5 1.9 0 2.4 5.3 1.3 5.3 3.8 0 1.2-1.1 2-2.8 2-1.3 0-2.3-.5-2.9-1.4"/>
-          <path d="M12 6.6v10.8"/>
-        </svg>
-      </span>
-    </article>
-
     <!-- Total $AMZN distributed -->
     <article class="stat" data-metric="distributed">
       <div class="stat__body">
         <h2 class="stat__label">Total $AMZN distributed</h2>
         <p class="stat__value"><span data-value="distributed"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></span><span class="stat__unit">AMZN</span></p>
-        <p class="stat__sub" data-chip-for="distributedUsd"><b data-value="distributedUsd"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></b></p>
+        <p class="stat__sub stat__sub--lead" data-chip-for="distributedUsd"><b data-value="distributedUsd"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></b></p>
       </div>
       <span class="stat__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24">
@@ -141,6 +126,22 @@
           <path d="M3.2 7.8h17.6v3.6H3.2z"/>
           <path d="M12 7.8v11.8"/>
           <path d="M12 7.8c-1.6-2.6-2.8-3.6-4.2-3.6a1.9 1.9 0 0 0 0 3.6H12Zm0 0c1.6-2.6 2.8-3.6 4.2-3.6a1.9 1.9 0 0 1 0 3.6H12Z"/>
+        </svg>
+      </span>
+    </article>
+
+    <!-- Total fees collected -->
+    <article class="stat" data-metric="fees">
+      <div class="stat__body">
+        <h2 class="stat__label">Total fees collected</h2>
+        <p class="stat__value"><span data-value="fees"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></span></p>
+        <p class="stat__note">90% to buy $AMZN</p>
+      </div>
+      <span class="stat__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8.6"/>
+          <path d="M14.6 9.4c-.5-.9-1.5-1.4-2.7-1.4-1.5 0-2.5.8-2.5 1.9 0 2.4 5.3 1.3 5.3 3.8 0 1.2-1.1 2-2.8 2-1.3 0-2.3-.5-2.9-1.4"/>
+          <path d="M12 6.6v10.8"/>
         </svg>
       </span>
     </article>
@@ -288,7 +289,7 @@
 <!-- ?v= is the cache buster: run `node scripts/stamp.mjs` on every deploy,
      which moves every ?v= here and `version` in config.js together. Skip it
      and a CDN keeps serving the previous config.js and app.js. -->
-<script src="config.js?v=6"></script>
-<script src="assets/js/app.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="assets/js/app.js?v=7"></script>
 </body>
 </html>

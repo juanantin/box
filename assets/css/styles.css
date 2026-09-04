@@ -265,6 +265,26 @@ a { color: inherit; text-decoration: none; }
 .stat__sub b { font-weight: 500; }
 .stat__sub b::before { content: "$"; }
 
+/* On the payout card the dollar figure is the one a reader can size — 0.2307
+   AMZNc means nothing without knowing a unit is worth ~$258 — so it runs
+   nearly as large as the token amount above it. */
+.stat__sub--lead {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -.01em;
+}
+
+/* Where the fee actually goes. Static text, not a figure. */
+.stat__note {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tan);
+  letter-spacing: .01em;
+}
+
 /* Values are numeric strings that swap in — keep them from reflowing */
 .stat__value, .stat__sub b { font-variant-numeric: tabular-nums; }
 
@@ -486,16 +506,42 @@ a { color: inherit; text-decoration: none; }
 
   .wrap { padding: 0 14px; }
 
-  /* One card per row: the figure + disc pairing needs the width */
-  .stats { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* Two cards per row. At this width the label, the figure and a 42px disc
+     cannot share a line, so the card turns: the disc goes above the text and
+     the figure gets the card's full width instead of what the disc leaves. */
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
-  .stat { padding: 16px 18px; gap: 13px; }
-  .stat__label { font-size: 11.5px; letter-spacing: .07em; }
-  .stat__value { font-size: 24px; gap: 6px; }
-  .stat__sub { font-size: 14.5px; }
+  .stat {
+    flex-direction: column-reverse;   /* markup keeps the disc last, for reading order */
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 14px 13px;
+    gap: 10px;
+  }
 
-  .stat__icon, .fact__icon { width: 42px; height: 42px; }
-  .stat__icon svg, .fact__icon svg { width: 21px; height: 21px; }
+  .stat__body { width: 100%; }
+
+  .stat__label { font-size: 10.5px; letter-spacing: .05em; margin-bottom: 5px; }
+
+  /* A figure is one word. The global break-word would hyphenate a market cap
+     across two lines mid-thousands ("$4,567,890." / "12"), so it is turned off
+     here and the type scales with the card instead. */
+  .stat__value {
+    font-size: clamp(15px, 4.6vw, 19px);
+    gap: 5px;
+    letter-spacing: -.01em;
+    white-space: nowrap;
+    word-break: normal;
+  }
+  .stat__unit { font-size: .66em; }
+  .stat__sub { font-size: 13px; }
+  .stat__sub--lead { font-size: 16px; margin-top: 3px; }
+  .stat__note { font-size: 11px; margin-top: 5px; }
+
+  .stat__icon { width: 34px; height: 34px; }
+  .stat__icon svg { width: 17px; height: 17px; }
+  .fact__icon { width: 42px; height: 42px; }
+  .fact__icon svg { width: 21px; height: 21px; }
 
   /* Stack the two ecosystem blocks */
   .eco { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 32px; padding: 18px 16px 20px; }
@@ -510,7 +556,17 @@ a { color: inherit; text-decoration: none; }
   .actions__inner { gap: 8px; }
   .btn { min-height: 40px; padding: 0 11px; font-size: 12.5px; gap: 6px; }
   .btn__icon { width: 15px; height: 15px; }
-  .stat__value { font-size: 22px; }
+
+  /* Two-up at 320px leaves ~140px a card. The turned card spends the disc's
+     space vertically rather than beside the figure, so it can stay — only the
+     type and the padding give. */
+  .stats { gap: 8px; }
+  .stat { padding: 12px 11px; gap: 8px; }
+  .stat__icon { width: 30px; height: 30px; }
+  .stat__icon svg { width: 15px; height: 15px; }
+  .stat__label { font-size: 10px; letter-spacing: .04em; }
+  .stat__sub, .stat__sub--lead { white-space: nowrap; }
+  .stat__sub--lead { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

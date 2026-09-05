@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '23',
+  version: '24',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -157,12 +157,15 @@ window.SITE_CONFIG = {
            carries on from the same block. */
         rpcUrls: [
           'https://mainnet.base.org',
-          'https://base.llamarpc.com',
           'https://base.drpc.org',
           'https://base-mainnet.public.blastapi.io',
           'https://base.meowrpc.com',
           'https://1rpc.io/base',
+          // Last two: observed refusing a browser outright rather than being
+          // busy — publicnode with a 403, llamarpc with no CORS header at all.
+          // Kept as a final resort, but they should not cost a probe first.
           'https://base-rpc.publicnode.com',
+          'https://base.llamarpc.com',
         ],
 
         // Defaults to CFG.launchBlock; set it here to scan a shorter window.

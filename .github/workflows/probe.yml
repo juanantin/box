@@ -1,0 +1,34 @@
+name: Probe token flows
+
+# Diagnostic, run by hand. The sandbox these changes are written in has no
+# route to Base, DexScreener or GeckoTerminal, so the one question that
+# matters — which token the rewards are actually paid in, and whether
+# anything will price it — can only be asked from a runner that has network.
+#
+# Actions ▸ Probe token flows ▸ Run workflow, then read the job log.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rpc_url:
+        description: Base RPC endpoint
+        required: false
+        default: https://mainnet.base.org
+      start_block:
+        description: First block to scan (blank = config.js launchBlock)
+        required: false
+        default: ''
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Probe
+        env:
+          RPC_URL: ${{ inputs.rpc_url }}
+          START_BLOCK: ${{ inputs.start_block }}
+        run: node scripts/probe.mjs

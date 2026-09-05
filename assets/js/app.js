@@ -32,16 +32,24 @@
   var nf2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
-  /* Fractions of a reward token, for the one case where whole numbers cannot
-     work: a unit worth ~$258 is paid out in fractions, and 0.2307 rounded to
-     nothing reads 0. */
-  var nfTok = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  /* The reward token carries two decimals: a unit worth ~$258 is paid out in
+     fractions, so whole numbers would erase the figure. */
+  var nfTok = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Money and counts are whole. Cents on a market cap are noise.
-  function usd(n) { return '$' + nf0.format(Math.round(n)); }
+  // …with more places only where two would round a real amount away to 0.00.
+  var nfTokFine = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
-  // A token amount is whole too, unless rounding would erase it entirely.
-  function amount(n) { return Math.abs(n) >= 1 ? nf0.format(Math.round(n)) : nfTok.format(n); }
+  /* Money and counts are whole — cents on a market cap are noise — but a sum
+     under a dollar keeps them, since "$0" would report a real amount as none. */
+  function usd(n) {
+    if (n !== 0 && Math.abs(n) < 1) return '$' + nfTok.format(n);
+    return '$' + nf0.format(Math.round(n));
+  }
+
+  function amount(n) {
+    var two = nfTok.format(n);
+    return (n !== 0 && Number(two.replace(/,/g, '')) === 0) ? nfTokFine.format(n) : two;
+  }
   function count(n) { return nf0.format(Math.round(n)); }
 
   var FORMATTERS = {

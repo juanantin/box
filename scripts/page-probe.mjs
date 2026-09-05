@@ -21,7 +21,7 @@ import { chromium } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8123);
-const WAIT = Number(process.env.WAIT_MS || 45000);
+const WAIT = Number(process.env.WAIT_MS || 150000);
 
 const TYPES = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
@@ -58,17 +58,23 @@ await page.goto(`http://localhost:${PORT}/?debug=1`, { waitUntil: 'commit' });
    moment something answered, and the chain scan is the slowest of them. */
 const started = Date.now();
 try {
+  /* Not the legend: it goes live the moment ANY source answers, and
+     DexScreener answers in half a second while the chain scan — the one
+     carrying holders, fees and payouts — takes half a minute. Waiting on the
+     legend is how a run reports "live" over three empty tiles. Wait for the
+     figure that only the scan can produce. */
   await page.waitForFunction(
-    () => document.querySelector('#dash-note')?.className.includes('is-live'),
+    () => {
+      const t = document.querySelector('[data-value="holders"]')?.textContent.trim();
+      return t && t !== '—' && t !== '';
+    },
     null, { timeout: WAIT },
   );
-  console.log(`\nlegend went live after ${Date.now() - started}ms`);
+  console.log(`\nthe chain scan landed after ${Date.now() - started}ms`);
 } catch {
-  console.log(`\nlegend never went live within ${WAIT}ms`);
+  console.log(`\nthe chain scan produced nothing within ${WAIT}ms`);
 }
-/* …then a moment more, because the chain scan can land after the first
-   source does and it is the one carrying the fee and payout figures. */
-await page.waitForTimeout(8000);
+await page.waitForTimeout(5000);
 
 const tiles = await page.$$eval('.stat', (nodes) => nodes.map((n) => ({
   label: n.querySelector('.stat__label')?.textContent.trim(),

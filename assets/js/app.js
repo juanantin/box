@@ -331,29 +331,48 @@
     return '0x' + '0'.repeat(24) + String(a).toLowerCase().replace(/^0x/, '');
   }
 
-  function rpcCall(url, method, params) {
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params || [] }),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }).then(function (j) {
-      if (j.error) throw new Error(j.error.message || 'rpc error');
-      return j.result;
-    });
+  /* A public node under load answers 429 or 500 and means "not now", not
+     "never". Told apart from a real refusal — a malformed filter, a range it
+     will not serve — because the two want opposite responses: one wants
+     waiting, the other wants a different question. */
+  var TRANSIENT = /HTTP (408|429|5\d\d)|Failed to fetch|NetworkError|network error|load failed|rate.?limit|too many requests|timeout|timed out/i;
+
+  function rpcCall(url, method, params, retries) {
+    var left = retries === undefined ? 3 : retries;
+    var waited = 0;
+
+    function attempt() {
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params || [] }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (j) {
+        if (j.error) throw new Error(j.error.message || 'rpc error');
+        return j.result;
+      }).then(null, function (e) {
+        if (left <= 0 || !TRANSIENT.test(e.message || '')) throw e;
+        left--;
+        waited = waited ? waited * 3 : 400;      // 0.4s, 1.2s, 3.6s
+        return new Promise(function (go) { setTimeout(go, waited); }).then(attempt);
+      });
+    }
+    return attempt();
   }
 
-  /* The first endpoint that answers wins, and is used for the whole scan.
-     Public RPCs differ in how wide a getLogs range they allow, so mixing them
-     mid-scan would make the chunk size meaningless. */
-  function pickRpc(urls) {
-    return urls.reduce(function (chain, url) {
+  /* The first endpoint that answers leads the scan — but the ones behind it
+     are kept, not discarded. Public RPCs differ in how wide a getLogs range
+     they allow, so the scan does not mix them casually; it moves to the next
+     only when the leader has stopped answering, and re-probes the range from
+     the same cursor, which the chunk halving already handles. */
+  function pickRpc(urls, from) {
+    return urls.slice(from || 0).reduce(function (chain, url, i) {
       return chain.then(function (found) {
         if (found) return found;
         return rpcCall(url, 'eth_blockNumber').then(
-          function (hex) { return { url: url, head: parseInt(hex, 16) }; },
+          function (hex) { return { url: url, head: parseInt(hex, 16), index: (from || 0) + i }; },
           function (e) { log('holders:rpc', url, 'failed —', e.message); return null; }
         );
       });
@@ -529,9 +548,10 @@
     var minSpan = Number(oc.minChunkSize || 1000);
     var span = Number(oc.chunkSize || 10000);
 
-    return pickRpc(urls).then(function (node) {
-      if (!node) throw new Error('no RPC answered');
+    return pickRpc(urls).then(function (first) {
+      if (!first) throw new Error('no RPC answered');
 
+      var node = first;                                       // reassigned if it stops answering
       var head = node.head - Number(oc.confirmations || 5);   // a reorg must not bank totals
       var cache = readCache(startBlock);
       var cursor = Math.max(cache.cursor, startBlock);
@@ -613,11 +633,17 @@
           });
         };
 
-        return Promise.all([
-          holderAsk,
-          soft(flowFilter(strategy, 'to', range)),
-          soft(flowFilter(strategy, 'from', range)),
-        ]);
+        /* After the holder query, not beside it. Three requests a window
+           across two dozen windows is a burst, and a burst is what a free
+           public node answers with 500 — which is exactly how the whole scan
+           came to die 21 seconds in, taking every figure with it. Two round
+           trips a window costs a few seconds and earns the answer. */
+        return holderAsk.then(function (logs) {
+          return Promise.all([
+            soft(flowFilter(strategy, 'to', range)),
+            soft(flowFilter(strategy, 'from', range)),
+          ]).then(function (flows) { return [logs, flows[0], flows[1]]; });
+        });
       }
 
       function step() {
@@ -638,6 +664,19 @@
             log('chain', 'narrowing to', span, 'blocks');
             return step();
           }
+          /* The leader has stopped answering even after its retries. The
+             blocks already folded are still good, so move to the spare and
+             carry on from the same cursor rather than losing the scan. */
+          if (TRANSIENT.test(err.message || '') && node.index + 1 < urls.length) {
+            log('chain', node.url, 'gave up (' + err.message + ') — trying the next RPC');
+            return pickRpc(urls, node.index + 1).then(function (next) {
+              if (!next) throw err;
+              node = next;
+              head = Math.min(head, next.head - Number(oc.confirmations || 5));
+              span = Number(oc.chunkSize || 10000);   // a new node, a fresh guess at its limit
+              return step();
+            });
+          }
           throw err;
         });
       }
@@ -646,6 +685,20 @@
         strategy = chosen;
         if (wantFlows && !chosen) log('chain', 'no flow filter accepted — holders only');
         return step();
+      }).then(null, function (err) {
+        /* THE bug behind three weeks of empty tiles. A 500 from a busy public
+           node rejected this promise, so the writeCache below never ran: the
+           windows already folded were thrown away, the next load began again
+           at the launch block, and hit the same wall at the same place. The
+           scan could never finish, so holders, fees and distributed were
+           permanently dashes while the market tiles — which need no scan —
+           filled in fine.
+
+           A cut-short scan is now simply an incomplete one. Nothing partial
+           is published, but everything read is banked, and the next load
+           resumes from where this one stopped. */
+        log('chain', 'scan stopped early:', err.message, '— banking', cursor - startBlock, 'blocks');
+        return false;
       }).then(function (complete) {
         writeCache({
           v: CACHE_VERSION, startBlock: startBlock, cursor: cursor,

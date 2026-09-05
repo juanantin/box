@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '12',
+  version: '13',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -163,6 +163,16 @@ window.SITE_CONFIG = {
         // Defaults to contracts.pool, feeLocker and rewardsIndex — they hold
         // supply without being holders.
         exclude: null,
+
+        /* Fallbacks for the fee/payout queries, tried only if this node
+           refuses eth_getLogs without an `address` — plenty of public ones do.
+           The unfiltered query is the better question, because it reports
+           whichever token actually moved rather than trusting a guess, so
+           these exist purely to survive a node that will not answer it.
+           rewardTokenAddress is tried first, then these in order. */
+        feeTokenCandidates: [
+          '0x185e51e2c41a2748234bffc0c5f3208a0ced456e',   // the Stockify index for $BOX
+        ],
       },
 
       blockscoutBase: 'https://base.blockscout.com',

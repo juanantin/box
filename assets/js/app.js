@@ -448,34 +448,84 @@
       var paidOut = cache.paidOut || {};
       var calls = 0;
 
+      /* Which filter shape the node will accept for the flow queries, decided
+         once by probe rather than assumed. Topic-only is the right question —
+         it finds the reward token instead of asserting one — but plenty of
+         public nodes refuse eth_getLogs without an `address`, so each named
+         candidate is a fallback. */
+      var strategies = [{ id: 'any token', address: null }];
+      [reward].concat(oc.feeTokenCandidates || []).forEach(function (a) {
+        if (a) strategies.push({ id: String(a).toLowerCase(), address: a });
+      });
+      var strategy = null;
+      var flowNote = '';
+
+      function flowFilter(strat, party, range) {
+        var f = {
+          topics: party === 'to'
+            ? [TRANSFER_TOPIC, null, addressTopic(index)]
+            : [TRANSFER_TOPIC, addressTopic(index)],   // trailing null dropped: some nodes reject it
+          fromBlock: range.fromBlock, toBlock: range.toBlock,
+        };
+        if (strat.address) f.address = strat.address;
+        return f;
+      }
+
+      /* One narrow window, tried against each shape until a node answers
+         without complaining. Two calls at worst per candidate, once per load. */
+      function pickStrategy() {
+        if (!wantFlows) return Promise.resolve(null);
+        var probeFrom = Math.max(startBlock, head - 1000);
+        var range = { fromBlock: '0x' + probeFrom.toString(16), toBlock: '0x' + head.toString(16) };
+
+        return strategies.reduce(function (chain, strat) {
+          return chain.then(function (found) {
+            if (found) return found;
+            calls++;
+            return rpcCall(node.url, 'eth_getLogs', [flowFilter(strat, 'to', range)]).then(
+              function () { log('chain', 'flow filter accepted:', strat.id); return strat; },
+              function (e) {
+                log('chain', 'flow filter rejected (' + strat.id + '):', e.message);
+                flowNote = e.message;
+                return null;
+              }
+            );
+          });
+        }, Promise.resolve(null));
+      }
+
       function window_(from, to) {
         var range = { fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16) };
-        var asks = [
-          rpcCall(node.url, 'eth_getLogs', [{
-            address: address, topics: [TRANSFER_TOPIC],
-            fromBlock: range.fromBlock, toBlock: range.toBlock,
-          }]),
-        ];
-        if (wantFlows) {
-          /* Deliberately NOT filtered by token address. Naming the token here
-             is what produced a confident zero: filter on the wrong one and
-             every window matches nothing, which sums to nothing and looks
-             like a real total. The `to`/`from` topic is selective enough on
-             its own — almost nothing touches a distributor — so the logs come
-             back carrying their own token in `address`, and the reward token
-             is read off them instead of asserted. */
-          asks.push(rpcCall(node.url, 'eth_getLogs', [{
-            topics: [TRANSFER_TOPIC, null, addressTopic(index)],
-            fromBlock: range.fromBlock, toBlock: range.toBlock,
-          }]));
-          // A trailing null is dropped: some nodes reject a filter ending in one.
-          asks.push(rpcCall(node.url, 'eth_getLogs', [{
-            topics: [TRANSFER_TOPIC, addressTopic(index)],
-            fromBlock: range.fromBlock, toBlock: range.toBlock,
-          }]));
-        }
-        calls += asks.length;
-        return Promise.all(asks);
+
+        // The holder scan is the one that must succeed; its failure is the
+        // scan's failure.
+        var holderAsk = rpcCall(node.url, 'eth_getLogs', [{
+          address: address, topics: [TRANSFER_TOPIC],
+          fromBlock: range.fromBlock, toBlock: range.toBlock,
+        }]);
+        calls++;
+
+        if (!strategy) return holderAsk.then(function (logs) { return [logs, null, null]; });
+
+        /* The flow queries are best-effort. They used to share a Promise.all
+           with the holder query, so one node complaining about one filter took
+           down the whole scan — and with it the holder count, which had
+           nothing to do with the complaint. */
+        var soft = function (filter) {
+          calls++;
+          return rpcCall(node.url, 'eth_getLogs', [filter]).then(null, function (e) {
+            flowNote = e.message;
+            strategy = null;              // stop paying for a filter this node refuses
+            log('chain', 'flow query failed, dropping flows:', e.message);
+            return null;
+          });
+        };
+
+        return Promise.all([
+          holderAsk,
+          soft(flowFilter(strategy, 'to', range)),
+          soft(flowFilter(strategy, 'from', range)),
+        ]);
       }
 
       function step() {
@@ -485,10 +535,8 @@
         var end = Math.min(cursor + span - 1, head);
         return window_(cursor, end).then(function (res) {
           foldTransfers(balances, res[0] || []);
-          if (wantFlows) {
-            sumByToken(feesIn, res[1]);
-            sumByToken(paidOut, res[2]);
-          }
+          if (res[1]) sumByToken(feesIn, res[1]);
+          if (res[2]) sumByToken(paidOut, res[2]);
           cursor = end + 1;
           return step();
         }, function (err) {
@@ -502,7 +550,11 @@
         });
       }
 
-      return step().then(function (complete) {
+      return pickStrategy().then(function (chosen) {
+        strategy = chosen;
+        if (wantFlows && !chosen) log('chain', 'no flow filter accepted — holders only');
+        return step();
+      }).then(function (complete) {
         writeCache({
           v: CACHE_VERSION, startBlock: startBlock, cursor: cursor,
           balances: balances, feesIn: feesIn, paidOut: paidOut,
@@ -519,7 +571,7 @@
         if (holders !== null) out.holders = holders;
 
         if (wantFlows) {
-          var token = dominant(feesIn) || dominant(paidOut);
+          var token = strategy ? (dominant(feesIn) || dominant(paidOut)) : null;
           if (token) {
             out._rewardToken = token;
             out.feesTokens = toTokens(BigInt(feesIn[token] || '0'), 18);
@@ -539,11 +591,14 @@
               }, function () { return out; });
             }
           } else {
-            /* Nothing at all reached the distributor in this range. That is
-               not a zero — it is silence, and a zero on the tile would be a
-               confident wrong answer. Left unset, so the previous figure or a
-               dash stands instead. */
-            log('chain', 'no transfers in or out of', index, '— reporting nothing rather than 0');
+            /* Nothing reached the distributor, or no filter was accepted.
+               Either way that is silence, not a zero, and a zero on the tile
+               would be a confident wrong answer — so it is left unset and the
+               previous figure or a dash stands. */
+            out._flowNote = strategy
+              ? 'no transfers found in or out of ' + index
+              : ('no flow filter this node accepts' + (flowNote ? ' — ' + flowNote : ''));
+            log('chain', out._flowNote);
           }
         }
         return Object.keys(out).length ? out : null;
@@ -863,7 +918,8 @@
     /* Then the merged result, metric by metric. A source can answer "ok" and
        still leave a card empty, so the panel has to show both ends. */
     var token = lastStats && lastStats._rewardToken;
-    var tokenLine = token
+    var flowNote = lastStats && lastStats._flowNote;
+    var tokenLine = flowNote ? '\n\nfees/distributed\n  ' + flowNote : token
       ? '\n\nfees are paid in\n  ' + token +
         (CFG.rewardTokenAddress && token !== String(CFG.rewardTokenAddress).toLowerCase()
           ? '\n  config says ' + CFG.rewardTokenAddress + '  <- MISMATCH' : '  (matches config)')
@@ -931,6 +987,7 @@
     function absorb(rank, part) {
       if (part) {
         if (part._rewardToken) { detectedToken = part._rewardToken; stats._rewardToken = part._rewardToken; }
+        if (part._flowNote) stats._flowNote = part._flowNote;
         if (part._rewardPrice) {
           rewardPrice = part._rewardPrice;
           priceToken = part._priceToken || null;

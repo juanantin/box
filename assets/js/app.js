@@ -32,14 +32,16 @@
   var nf2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
-  /* Token amounts are not money and do not share its two decimals: a reward
-     token worth ~$258 a unit is paid out in fractions, and 0.2307 rounded to
-     two places reads 0.23 — a fifth of the figure lost to formatting. Four
-     places carry it, while a whole-number amount still reads as one. */
+  /* Fractions of a reward token, for the one case where whole numbers cannot
+     work: a unit worth ~$258 is paid out in fractions, and 0.2307 rounded to
+     nothing reads 0. */
   var nfTok = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
-  function usd(n) { return '$' + nf2.format(n); }
-  function amount(n) { return nfTok.format(n); }
+  // Money and counts are whole. Cents on a market cap are noise.
+  function usd(n) { return '$' + nf0.format(Math.round(n)); }
+
+  // A token amount is whole too, unless rounding would erase it entirely.
+  function amount(n) { return Math.abs(n) >= 1 ? nf0.format(Math.round(n)) : nfTok.format(n); }
   function count(n) { return nf0.format(Math.round(n)); }
 
   var FORMATTERS = {

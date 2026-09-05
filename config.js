@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '20',
+  version: '21',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -42,10 +42,10 @@ window.SITE_CONFIG = {
      distributor. Matched case-insensitively against each token's own symbol(),
      because raw amounts cannot tell them apart: a distributor sees the trading
      token's large flows beside $AMZN's fractional ones, and picking the larger
-     put 7,205,199 on a tile whose true figure was a fraction of one. */
-     Verified on chain: symbol() returns "AMZNc" with 8 decimals, so anything
-     matching on an exact "AMZN" misses it. The match is a substring, which
-     covers both. */
+     put 7,205,199 on a tile whose true figure was a fraction of one.
+
+     Verified on chain: symbol() returns "AMZNc", not "AMZN", so an exact
+     comparison would miss it. The match is a substring, which covers both. */
   rewardTokenSymbol: 'AMZN',
 
   /* Holders' share of what leaves the rewards index — the rest is the

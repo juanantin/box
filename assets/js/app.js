@@ -915,6 +915,10 @@
   var note = document.getElementById('dash-note');
   var legendText = document.getElementById('legend-text');
 
+  /* Which build is actually running. Small, but it turns "did the deploy
+     land?" from a guess into something the page answers. */
+  function build() { return CFG.version ? '  ·  b' + CFG.version : ''; }
+
   function clock(ms) {
     var d = new Date(ms || Date.now());
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -937,10 +941,11 @@
      a minute ago. The remembered value stands in until something live
      replaces it, which it does at the first opportunity: these are seeded at
      a rank below every real source, so any answer at all outranks them. */
-  /* Versioned: browsers that loaded the build which reported a zero for the
-     flows have that zero remembered, and it would be shown until something
-     live replaced it. A new key drops it. */
-  var STATS_KEY = 'box:stats:v2:' + String(address).toLowerCase();
+  /* Versioned, and bumped whenever a build shipped a figure that was wrong
+     rather than merely stale — those get remembered too, and a remembered
+     wrong number outlives the bug that made it. v2 dropped the zeros; v3
+     drops the 7,205,199 that came of picking the loudest token. */
+  var STATS_KEY = 'box:stats:v3:' + String(address).toLowerCase();
 
   function readStats() {
     try {
@@ -1045,7 +1050,7 @@
       Object.keys(remembered.values).forEach(function (k) {
         if (typeof stats[k] !== 'number') { stats[k] = remembered.values[k]; owner[k] = RANK.remembered; }
       });
-      setLegend('stale', 'Last read ' + clock(remembered.at));
+      setLegend('stale', 'Last read ' + clock(remembered.at) + build());
       paint(stats);
     }
 
@@ -1118,9 +1123,9 @@
 
       // Only worth saying something when the data ISN'T live — a timestamp on
       // a working dashboard is noise.
-      if (live) setLegend('live', 'Live from Base · ' + clock(Date.now()));
-      else if (remembered) setLegend('stale', 'Last read ' + clock(remembered.at) + ' · reconnecting');
-      else setLegend('down', 'Live data unavailable · retrying');
+      if (live) setLegend('live', 'Live from Base · ' + clock(Date.now()) + build());
+      else if (remembered) setLegend('stale', 'Last read ' + clock(remembered.at) + ' · reconnecting' + build());
+      else setLegend('down', 'Live data unavailable · retrying' + build());
       renderDebug();
     });
   }

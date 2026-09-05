@@ -56,7 +56,10 @@
     fees: usd,
     feesTokens: amount,
     distributed: amount,
-    distributedUsd: amount,
+    // A dollar figure, so it carries a dollar sign. It was formatted as a
+    // bare token amount, which is why the payout card read "3,258.00" and
+    // looked like a second, unlabelled count of tokens.
+    distributedUsd: usd,
     holders: count,
     marketCap: usd,
     liquidity: usd,

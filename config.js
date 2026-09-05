@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '19',
+  version: '20',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -22,6 +22,9 @@ window.SITE_CONFIG = {
   // thestonks.exchange's /api/coins entry for $BOX. Used to price "total
   // distributed" in USD when the rewards source doesn't give a USD figure
   // itself, so the sub-line under that card depends on it.
+  // Confirmed against Base: symbol() "AMZNc", decimals() 8, and the pool's
+  // quote side prices it (~$275, corroborated by three AMZNc/USDC pairs and
+  // GeckoTerminal).
   rewardTokenAddress: '0xb200000000000000000000d9192b6B456483C2E8',
 
   // Free, keyless, CORS-enabled. Used as the last price source, because it
@@ -40,6 +43,9 @@ window.SITE_CONFIG = {
      because raw amounts cannot tell them apart: a distributor sees the trading
      token's large flows beside $AMZN's fractional ones, and picking the larger
      put 7,205,199 on a tile whose true figure was a fraction of one. */
+     Verified on chain: symbol() returns "AMZNc" with 8 decimals, so anything
+     matching on an exact "AMZN" misses it. The match is a substring, which
+     covers both. */
   rewardTokenSymbol: 'AMZN',
 
   /* Holders' share of what leaves the rewards index — the rest is the

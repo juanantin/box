@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+/* ==========================================================================
+   page-probe.mjs — load the real page in a real browser and print what the
+   tiles say.
+
+   scripts/probe.mjs answers what the chain holds. This answers the different
+   question that kept being guessed at: what the page DOES with it. It serves
+   this working tree, opens it with ?debug=1, waits for the dashboard to
+   settle, and prints every [site] console line plus the rendered text of
+   every tile — so a wrong figure can be traced to the line that produced it
+   instead of reasoned about from a sandbox that cannot reach Base.
+
+     node scripts/page-probe.mjs
+   ========================================================================== */
+
+import http from 'node:http';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PORT = Number(process.env.PORT || 8123);
+const WAIT = Number(process.env.WAIT_MS || 45000);
+
+const TYPES = {
+  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+  '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp',
+  '.mp4': 'video/mp4', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+};
+
+const server = http.createServer(async (req, res) => {
+  const rel = decodeURIComponent(req.url.split('?')[0]);
+  const file = path.join(ROOT, rel === '/' ? 'index.html' : rel);
+  if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
+  try {
+    const body = await readFile(file);
+    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
+    res.end(body);
+  } catch { res.writeHead(404).end('not found'); }
+});
+
+await new Promise((r) => server.listen(PORT, r));
+
+const browser = await chromium.launch();
+const page = await browser.newPage();
+
+page.on('console', (m) => {
+  const t = m.text();
+  if (t.startsWith('[site]') || m.type() === 'error') console.log('  ' + t);
+});
+page.on('pageerror', (e) => console.log('  PAGE ERROR: ' + e.message));
+
+console.log('=== page probe ==========================================');
+await page.goto(`http://localhost:${PORT}/?debug=1`, { waitUntil: 'commit' });
+
+/* Settle on the dashboard rather than on a timer: the legend goes live the
+   moment something answered, and the chain scan is the slowest of them. */
+const started = Date.now();
+try {
+  await page.waitForFunction(
+    () => document.querySelector('#dash-note')?.className.includes('is-live'),
+    null, { timeout: WAIT },
+  );
+  console.log(`\nlegend went live after ${Date.now() - started}ms`);
+} catch {
+  console.log(`\nlegend never went live within ${WAIT}ms`);
+}
+/* …then a moment more, because the chain scan can land after the first
+   source does and it is the one carrying the fee and payout figures. */
+await page.waitForTimeout(8000);
+
+const tiles = await page.$$eval('.stat', (nodes) => nodes.map((n) => ({
+  label: n.querySelector('.stat__label')?.textContent.trim(),
+  value: n.querySelector('.stat__value')?.textContent.trim().replace(/\s+/g, ' '),
+  sub: n.querySelector('.stat__sub')?.textContent.trim(),
+  subHidden: n.querySelector('.stat__sub')?.hidden ?? null,
+})));
+
+console.log('\n--- tiles as rendered -----------------------------------');
+for (const t of tiles) {
+  console.log(`  ${String(t.label).padEnd(22)} ${t.value}`);
+  if (t.sub !== undefined) console.log(`  ${' '.repeat(22)} sub: ${JSON.stringify(t.sub)}${t.subHidden ? '  (HIDDEN)' : ''}`);
+}
+
+console.log('\n--- legend ----------------------------------------------');
+console.log('  ' + (await page.$eval('#dash-note', (n) => n.textContent.trim().replace(/\s+/g, ' ')).catch(() => 'no legend')));
+
+console.log('\n--- debug panel -----------------------------------------');
+console.log((await page.$eval('#dash-debug', (n) => n.textContent).catch(() => '  (none)')));
+
+console.log('=========================================================');
+await browser.close();
+server.close();

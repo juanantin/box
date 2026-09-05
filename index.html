@@ -18,10 +18,10 @@
      own, regardless of these tags. Every icon is generated from
      images/favicon.png — the Apple one has to be flattened onto white, because
      iOS renders a transparent home-screen icon as black. -->
-<link rel="icon" href="favicon.ico?v=18" sizes="any">
-<link rel="icon" type="image/png" href="images/favicon.png?v=18">
-<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=18">
-<link rel="manifest" href="site.webmanifest?v=18">
+<link rel="icon" href="favicon.ico?v=19" sizes="any">
+<link rel="icon" type="image/png" href="images/favicon.png?v=19">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png?v=19">
+<link rel="manifest" href="site.webmanifest?v=19">
 
 <!-- One face, four weights: the design separates label from figure by weight
      and colour, so the family has to carry 400 through 700.
@@ -39,7 +39,7 @@
       media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
 
-<link rel="stylesheet" href="assets/css/styles.css?v=18">
+<link rel="stylesheet" href="assets/css/styles.css?v=19">
 </head>
 <body>
 
@@ -144,7 +144,9 @@
     <article class="stat" data-metric="fees">
       <div class="stat__body">
         <h2 class="stat__label">Total fees collected</h2>
-        <p class="stat__value"><span data-value="fees"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></span></p>
+        <!-- Dollars when the reward token can be priced, the token amount when
+             it cannot — an index token need not trade anywhere. -->
+        <p class="stat__value"><span data-value="fees"><span class="dots" role="img" aria-label="Loading"><i></i><i></i><i></i></span></span><span class="stat__unit" data-unit-for="fees" hidden>AMZN</span></p>
         <p class="stat__note">90% to buy $AMZN</p>
       </div>
       <span class="stat__icon" aria-hidden="true">
@@ -304,7 +306,7 @@
 <!-- ?v= is the cache buster: run `node scripts/stamp.mjs` on every deploy,
      which moves every ?v= here and `version` in config.js together. Skip it
      and a CDN keeps serving the previous config.js and app.js. -->
-<script src="config.js?v=18"></script>
-<script src="assets/js/app.js?v=18"></script>
+<script src="config.js?v=19"></script>
+<script src="assets/js/app.js?v=19"></script>
 </body>
 </html>

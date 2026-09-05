@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '18',
+  version: '19',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -23,6 +23,10 @@ window.SITE_CONFIG = {
   // distributed" in USD when the rewards source doesn't give a USD figure
   // itself, so the sub-line under that card depends on it.
   rewardTokenAddress: '0xb200000000000000000000d9192b6B456483C2E8',
+
+  // Free, keyless, CORS-enabled. Used as the last price source, because it
+  // covers tokens DexScreener has no pair for — an index token among them.
+  geckoterminalBase: 'https://api.geckoterminal.com/api/v2',
 
   chain: 'base',    // DexScreener chain slug
   chainId: 8453,    // EVM chain id

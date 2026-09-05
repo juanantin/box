@@ -233,8 +233,8 @@
     var usd = num(pair.priceUsd);
     var native = num(pair.priceNative);
 
-    if (base === want) return usd;
-    if (quote === want && usd !== null && native !== null && native > 0) return usd / native;
+    if (base === want) return usd !== null && usd > 0 ? usd : null;
+    if (quote === want && usd !== null && native !== null && native > 0 && usd > 0) return usd / native;
 
     /* A pair that names neither side is not evidence about this token. Older
        responses omit the token objects entirely; rather than guess, say so. */
@@ -694,13 +694,10 @@
               /* Price the token that actually moved. Without this the dollar
                  figures wait on a config change, and the tiles carry a token
                  amount nobody can size. */
-              /* Price the token that actually moved, reading it off whichever
-                 side of the pair it sits on. */
-              return dexByToken(token).then(function (pair) {
-                var p = priceFromPair(pair, token);
-                if (p === null) p = priceFromPair(poolPair, token);
+              /* Price the token that actually moved, through every source. */
+              return priceForToken(token).then(function (p) {
                 if (p !== null) { out._rewardPrice = p; out._priceToken = token; }
-                else log('chain', 'no pair prices', token, '— dollar figures withheld');
+                else log('chain', 'nothing prices', token, '— dollar figures withheld');
                 return out;
               }, function () { return out; });
             }
@@ -863,27 +860,59 @@
      this pool already prices it exactly — priceUsd is the token in dollars,
      priceNative the same token in the quote — so their ratio is the quote's
      dollar price, available whenever the pair itself resolves. */
+  /* What one unit of `token` is worth, asked of everything that might know.
+
+     Three sources, because two were not enough: a reward token that is an
+     index rather than a traded pair can be absent from DexScreener entirely,
+     and then the dollar figures vanish while the token amounts are perfectly
+     right — which is exactly what happened.
+
+       1. this pool, which prices either of its own sides exactly
+       2. the token's own deepest pair, if it has one
+       3. GeckoTerminal's price endpoint, which covers tokens DexScreener
+          does not index
+
+     A zero is never a price: it means "no answer" and is treated as one, so a
+     tile shows its token amount or a dash rather than $0. */
+  function priceForToken(token) {
+    if (!token) return Promise.resolve(null);
+    var want = String(token).toLowerCase();
+    var pool = (SRC.dexscreener || {}).pairAddress || (CFG.contracts || {}).pool;
+
+    function good(p, where) {
+      if (typeof p !== 'number' || !isFinite(p) || p <= 0) return null;
+      log('price', want, '=', p, 'via', where);
+      return p;
+    }
+
+    return dexPair(address, pool).then(function (pair) {
+      poolPair = pair || poolPair;
+      var p = good(priceFromPair(pair, want), 'the pool');
+      if (p !== null) return p;
+
+      return dexByToken(want).then(function (own) {
+        var q = good(priceFromPair(own, want), 'its own pair');
+        if (q !== null) return q;
+        return geckoPrice(want);
+      }, function () { return geckoPrice(want); });
+    }, function () { return geckoPrice(want); });
+
+    function geckoPrice(addr) {
+      var base = (CFG.geckoterminalBase || 'https://api.geckoterminal.com/api/v2').replace(/\/+$/, '');
+      var url = base + '/simple/networks/' + (CFG.chain || 'base') + '/token_price/' + encodeURIComponent(addr);
+      return softly('price:geckoterminal', fetchJson(url).then(function (d) {
+        var prices = d && d.data && d.data.attributes && d.data.attributes.token_prices;
+        var raw = prices && (prices[addr] || prices[String(addr).toLowerCase()]);
+        return good(num(raw), 'GeckoTerminal');
+      })).then(function (v) { return v === undefined ? null : v; });
+    }
+  }
+
   function sourceRewardPrice() {
     var token = CFG.rewardTokenAddress;
     if (!token) return Promise.resolve(null);
-    var pool = (SRC.dexscreener || {}).pairAddress || (CFG.contracts || {}).pool;
-
-    /* The token's own pair is the fallback, not the first choice: a reward
-       token that trades mainly as the quote side of this pool may not be the
-       base of any pair DexScreener indexes, and the search comes back empty.
-       This pool prices it directly, whichever side of it the token is on. */
-    return dexPair(address, pool).then(function (pair) {
-      var price = priceFromPair(pair, token);
-      if (price !== null) {
-        log('rewardPrice', 'from the pool:', price);
-        return { _rewardPrice: price, _priceToken: String(token).toLowerCase() };
-      }
-      return dexByToken(token).then(function (own) {
-        var p = priceFromPair(own, token);
-        if (p === null) return null;
-        log('rewardPrice', 'from its own pair:', p);
-        return { _rewardPrice: p, _priceToken: String(token).toLowerCase() };
-      });
+    return priceForToken(token).then(function (p) {
+      return p === null ? null : { _rewardPrice: p, _priceToken: String(token).toLowerCase() };
     });
   }
 
@@ -898,6 +927,7 @@
 
   var shown = {};
   var timers = {};
+  var feesAsTokens = false;     // the fees tile is showing tokens, not dollars
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function setValue(key, target) {
@@ -911,7 +941,7 @@
     }
     node.classList.remove('is-empty');
 
-    var fmt = FORMATTERS[key] || amount;
+    var fmt = (key === 'fees' && feesAsTokens) ? amount : (FORMATTERS[key] || amount);
     var from = typeof shown[key] === 'number' ? shown[key] : 0;
     shown[key] = target;
 
@@ -934,10 +964,23 @@
 
   var painted = false;
   var chips = Array.prototype.slice.call(document.querySelectorAll('[data-chip-for]'));
+  var units = Array.prototype.slice.call(document.querySelectorAll('[data-unit-for]'));
 
   function paint(stats) {
     painted = true;
+
+    /* The fees tile is a dollar figure when the reward token can be priced.
+       When it cannot — an index token need not trade anywhere — it shows what
+       is actually known, the token amount, rather than a dash beside a
+       payout tile that has one. */
+    var feesInTokens = typeof stats.fees !== 'number' && typeof stats.feesTokens === 'number';
+    feesAsTokens = feesInTokens;
+    if (feesInTokens) stats = Object.assign({}, stats, { fees: stats.feesTokens });
+
     METRICS.forEach(function (key) { setValue(key, stats[key]); });
+    units.forEach(function (u) {
+      u.hidden = !(u.dataset.unitFor === 'fees' && feesInTokens);
+    });
     // Each chip hides itself when the figure it exists to show is missing.
     chips.forEach(function (chip) {
       chip.hidden = typeof stats[chip.dataset.chipFor] !== 'number';

@@ -215,6 +215,33 @@
   // Overridable so the whole pipeline can be exercised against a stub.
   var DEX = CFG.dexBase || 'https://api.dexscreener.com/latest/dex/';
 
+  var poolPair = null;   // the pool's own pair, kept for pricing either side
+
+  /* What one unit of `token` is worth, according to this pair.
+
+     A pair prices its BASE token: priceUsd is the base in dollars, priceNative
+     the base in units of the quote. Reading priceUsd for a token that is the
+     QUOTE side reports the other token's price — which is how a correct $AMZN
+     amount came to be multiplied by the price of $BOX. For the quote side the
+     answer is the ratio: dollars per base ÷ quote per base = dollars per
+     quote. */
+  function priceFromPair(pair, token) {
+    if (!pair || !token) return null;
+    var want = String(token).toLowerCase();
+    var base = pair.baseToken && String(pair.baseToken.address || '').toLowerCase();
+    var quote = pair.quoteToken && String(pair.quoteToken.address || '').toLowerCase();
+    var usd = num(pair.priceUsd);
+    var native = num(pair.priceNative);
+
+    if (base === want) return usd;
+    if (quote === want && usd !== null && native !== null && native > 0) return usd / native;
+
+    /* A pair that names neither side is not evidence about this token. Older
+       responses omit the token objects entirely; rather than guess, say so. */
+    if (!base && !quote) { log('price', 'pair does not name its tokens — cannot price', token); return null; }
+    return null;
+  }
+
   /* Look a pair up by its own address. More dependable than the token search
      when a token trades against something other than the usual quotes — the
      search can come back empty while the pool is right there. */
@@ -246,6 +273,7 @@
     var pool = (SRC.dexscreener || {}).pairAddress || (CFG.contracts || {}).pool;
     return dexPair(address, pool).then(function (pair) {
       if (!pair) return null;
+      poolPair = pair;               // reused for pricing the reward token
       var out = {};
       var mc = num(pair.marketCap);
       if (mc === null) mc = num(pair.fdv);
@@ -666,9 +694,13 @@
               /* Price the token that actually moved. Without this the dollar
                  figures wait on a config change, and the tiles carry a token
                  amount nobody can size. */
+              /* Price the token that actually moved, reading it off whichever
+                 side of the pair it sits on. */
               return dexByToken(token).then(function (pair) {
-                var p = pair ? num(pair.priceUsd) : null;
+                var p = priceFromPair(pair, token);
+                if (p === null) p = priceFromPair(poolPair, token);
                 if (p !== null) { out._rewardPrice = p; out._priceToken = token; }
+                else log('chain', 'no pair prices', token, '— dollar figures withheld');
                 return out;
               }, function () { return out; });
             }
@@ -832,21 +864,25 @@
      priceNative the same token in the quote — so their ratio is the quote's
      dollar price, available whenever the pair itself resolves. */
   function sourceRewardPrice() {
-    if (!CFG.rewardTokenAddress) return Promise.resolve(null);
+    var token = CFG.rewardTokenAddress;
+    if (!token) return Promise.resolve(null);
     var pool = (SRC.dexscreener || {}).pairAddress || (CFG.contracts || {}).pool;
 
+    /* The token's own pair is the fallback, not the first choice: a reward
+       token that trades mainly as the quote side of this pool may not be the
+       base of any pair DexScreener indexes, and the search comes back empty.
+       This pool prices it directly, whichever side of it the token is on. */
     return dexPair(address, pool).then(function (pair) {
-      var usd = pair ? num(pair.priceUsd) : null;
-      var native = pair ? num(pair.priceNative) : null;
-      if (usd !== null && native !== null && native > 0) {
-        var implied = usd / native;
-        log('rewardPrice', 'from the pool:', usd, '/', native, '=', implied);
-        return { _rewardPrice: implied, _priceToken: String(CFG.rewardTokenAddress).toLowerCase() };
+      var price = priceFromPair(pair, token);
+      if (price !== null) {
+        log('rewardPrice', 'from the pool:', price);
+        return { _rewardPrice: price, _priceToken: String(token).toLowerCase() };
       }
-      return dexPair(CFG.rewardTokenAddress, (CFG.contracts || {}).rewardPool).then(function (own) {
-        var price = own ? num(own.priceUsd) : null;
-        return price === null ? null
-          : { _rewardPrice: price, _priceToken: String(CFG.rewardTokenAddress).toLowerCase() };
+      return dexByToken(token).then(function (own) {
+        var p = priceFromPair(own, token);
+        if (p === null) return null;
+        log('rewardPrice', 'from its own pair:', p);
+        return { _rewardPrice: p, _priceToken: String(token).toLowerCase() };
       });
     });
   }

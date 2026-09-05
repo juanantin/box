@@ -8,6 +8,12 @@ name: Probe token flows
 # Actions ▸ Probe token flows ▸ Run workflow, then read the job log.
 
 on:
+  # Also on push, because the token that drives this session cannot dispatch
+  # a workflow by hand — touching either file below is how it gets run.
+  push:
+    paths:
+      - scripts/probe.mjs
+      - .github/workflows/probe.yml
   workflow_dispatch:
     inputs:
       rpc_url:

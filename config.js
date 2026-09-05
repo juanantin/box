@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '14',
+  version: '15',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -30,6 +30,13 @@ window.SITE_CONFIG = {
   // The block $BOX launched at, from thestonks.exchange's /api/coins. The
   // chain scan starts here; nothing relevant happened before it.
   launchBlock: 50704292,
+
+  /* How the reward token is recognised among everything that touches the
+     distributor. Matched case-insensitively against each token's own symbol(),
+     because raw amounts cannot tell them apart: a distributor sees the trading
+     token's large flows beside $AMZN's fractional ones, and picking the larger
+     put 7,205,199 on a tile whose true figure was a fraction of one. */
+  rewardTokenSymbol: 'AMZN',
 
   /* Holders' share of what leaves the rewards index — the rest is the
      protocol's cut, so the outflow is NOT the distributed figure on its own.

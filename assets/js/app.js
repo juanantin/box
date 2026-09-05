@@ -392,13 +392,64 @@
     return into;
   }
 
-  // The token with the largest inflow is the one the fees are denominated in.
-  function dominant(totals) {
-    var best = null;
-    for (var t in totals) {
-      if (best === null || BigInt(totals[t]) > BigInt(totals[best])) best = t;
+  /* ERC-20 metadata, read straight off the token. Two eth_calls, no ABI
+     needed beyond the selectors, so this works on unverified contracts. */
+  var SEL_SYMBOL = '0x95d89b41';
+  var SEL_DECIMALS = '0x313ce567';
+
+  function decodeString(hex) {
+    if (!hex || hex === '0x') return '';
+    var body = hex.slice(2);
+    var bytes = [];
+    // A well-behaved token returns an ABI string: offset, length, then data.
+    // An old one returns a bare bytes32. Both decode as "the printable run".
+    for (var i = 0; i < body.length; i += 2) {
+      var c = parseInt(body.substr(i, 2), 16);
+      if (c >= 32 && c < 127) bytes.push(String.fromCharCode(c));
     }
-    return best;
+    return bytes.join('').trim();
+  }
+
+  function tokenMeta(url, token) {
+    return Promise.all([
+      rpcCall(url, 'eth_call', [{ to: token, data: SEL_SYMBOL }, 'latest']).then(decodeString, function () { return ''; }),
+      rpcCall(url, 'eth_call', [{ to: token, data: SEL_DECIMALS }, 'latest']).then(
+        function (h) { var d = parseInt(h, 16); return isFinite(d) && d >= 0 && d <= 36 ? d : 18; },
+        function () { return 18; }
+      ),
+    ]).then(function (r) { return { address: token, symbol: r[0], decimals: r[1] }; });
+  }
+
+  /* Which of the tokens that touched the distributor is the reward token.
+
+     NOT the one with the largest raw total, which is what this used to do and
+     what put 7,205,199 on a tile whose true figure was a fraction of one:
+     base units are not comparable across tokens, and a distributor sees the
+     trading token's large flows beside the reward token's small ones. The
+     reward token is the one that says it is — matched on the symbol the page
+     is built around — with configuration and then size as fallbacks. */
+  function pickRewardToken(metas, totals, configured) {
+    var want = String(CFG.rewardTokenSymbol || 'AMZN').toLowerCase();
+
+    var bySymbol = metas.filter(function (m) {
+      return m.symbol && m.symbol.toLowerCase().indexOf(want) !== -1;
+    });
+    if (bySymbol.length === 1) return bySymbol[0];
+    if (bySymbol.length > 1) {
+      // More than one match: the largest of those, now that decimals are known.
+      return bySymbol.sort(function (a, b) {
+        return toTokens(BigInt(totals[b.address] || '0'), b.decimals) -
+               toTokens(BigInt(totals[a.address] || '0'), a.decimals);
+      })[0];
+    }
+
+    var cfg = configured && metas.filter(function (m) { return m.address === String(configured).toLowerCase(); })[0];
+    if (cfg) return cfg;
+
+    return metas.slice().sort(function (a, b) {
+      return toTokens(BigInt(totals[b.address] || '0'), b.decimals) -
+             toTokens(BigInt(totals[a.address] || '0'), a.decimals);
+    })[0] || null;
   }
 
   /* One walk of the chain, three questions asked of every window:
@@ -573,13 +624,34 @@
         if (holders !== null) out.holders = holders;
 
         if (wantFlows) {
-          var token = strategy ? (dominant(feesIn) || dominant(paidOut)) : null;
-          if (token) {
+          // Every token that touched the distributor, in or out.
+          var seen = {};
+          Object.keys(feesIn).concat(Object.keys(paidOut)).forEach(function (t) { seen[t] = true; });
+          var tokens = Object.keys(seen);
+          if (!tokens.length) return finish(null, null);
+
+          calls += tokens.length * 2;
+          return Promise.all(tokens.map(function (t) { return tokenMeta(node.url, t); }))
+            .then(function (metas) {
+              log('chain', 'tokens at the distributor:', metas.map(function (m) {
+                return m.symbol + ' (' + m.decimals + 'dp) ' + m.address;
+              }).join(', '));
+              return finish(pickRewardToken(metas, feesIn, reward), metas);
+            }, function () { return finish(null, null); });
+        }
+        return finish(null, null);
+
+        function finish(meta, metas) {
+          if (meta) {
+            var token = meta.address;
             out._rewardToken = token;
-            out.feesTokens = toTokens(BigInt(feesIn[token] || '0'), 18);
+            out._rewardSymbol = meta.symbol;
+            // Decimals from the token, not assumed: an 18 that is really a 6
+            // is a millionfold error, silently.
+            out.feesTokens = toTokens(BigInt(feesIn[token] || '0'), meta.decimals);
             // Not the whole outflow — that carries the protocol's cut.
-            out.distributed = toTokens(BigInt(paidOut[token] || '0'), 18) * holderShare;
-            log('chain', 'flows are in', token,
+            out.distributed = toTokens(BigInt(paidOut[token] || '0'), meta.decimals) * holderShare;
+            log('chain', 'reward token', meta.symbol, token, meta.decimals + 'dp',
                 '| in', out.feesTokens, '| to holders', out.distributed);
             if (String(reward).toLowerCase() !== token) {
               log('chain', 'NOTE: config rewardTokenAddress is', reward, 'but the chain says', token);
@@ -602,8 +674,8 @@
               : ('no flow filter this node accepts' + (flowNote ? ' — ' + flowNote : ''));
             log('chain', out._flowNote);
           }
+          return Object.keys(out).length ? out : null;
         }
-        return Object.keys(out).length ? out : null;
       });
     });
   }
@@ -921,8 +993,9 @@
        still leave a card empty, so the panel has to show both ends. */
     var token = lastStats && lastStats._rewardToken;
     var flowNote = lastStats && lastStats._flowNote;
+    var symbol = (lastStats && lastStats._rewardSymbol) || '';
     var tokenLine = flowNote ? '\n\nfees/distributed\n  ' + flowNote : token
-      ? '\n\nfees are paid in\n  ' + token +
+      ? '\n\nfees are paid in\n  ' + (symbol ? symbol + '  ' : '') + token +
         (CFG.rewardTokenAddress && token !== String(CFG.rewardTokenAddress).toLowerCase()
           ? '\n  config says ' + CFG.rewardTokenAddress + '  <- MISMATCH' : '  (matches config)')
       : '';
@@ -988,7 +1061,11 @@
 
     function absorb(rank, part) {
       if (part) {
-        if (part._rewardToken) { detectedToken = part._rewardToken; stats._rewardToken = part._rewardToken; }
+        if (part._rewardToken) {
+          detectedToken = part._rewardToken;
+          stats._rewardToken = part._rewardToken;
+          stats._rewardSymbol = part._rewardSymbol;
+        }
         if (part._flowNote) stats._flowNote = part._flowNote;
         if (part._rewardPrice) {
           rewardPrice = part._rewardPrice;

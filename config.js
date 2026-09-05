@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '22',
+  version: '23',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -149,10 +149,20 @@ window.SITE_CONFIG = {
            public nodes differ in how wide a getLogs range they allow and
            swapping mid-scan would make the chunk size meaningless. All three
            are public, keyless and CORS-enabled. */
+        /* Seven, because a public endpoint's bad minute should not be the
+           dashboard's bad day. Observed in a real browser: mainnet.base.org
+           answers 500 under a sustained scan and publicnode answers 403 —
+           between them they ended a scan that was 94% complete while a third
+           URL sat unused. The scan moves down this list on any refusal and
+           carries on from the same block. */
         rpcUrls: [
           'https://mainnet.base.org',
-          'https://base-rpc.publicnode.com',
           'https://base.llamarpc.com',
+          'https://base.drpc.org',
+          'https://base-mainnet.public.blastapi.io',
+          'https://base.meowrpc.com',
+          'https://1rpc.io/base',
+          'https://base-rpc.publicnode.com',
         ],
 
         // Defaults to CFG.launchBlock; set it here to scan a shorter window.

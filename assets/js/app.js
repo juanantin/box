@@ -666,8 +666,15 @@
           }
           /* The leader has stopped answering even after its retries. The
              blocks already folded are still good, so move to the spare and
-             carry on from the same cursor rather than losing the scan. */
-          if (TRANSIENT.test(err.message || '') && node.index + 1 < urls.length) {
+             carry on from the same cursor rather than losing the scan.
+
+             ANY error, not just a transient one. The distinction matters for
+             whether to wait and retry the same node; it does not matter at
+             all for whether to try a different one. Keeping it here cost a
+             scan that was 94% done: mainnet.base.org 500ed, the next node
+             answered 403 — a flat refusal, not a busy signal — and the scan
+             stopped with a third RPC in the list still untried. */
+          if (node.index + 1 < urls.length) {
             log('chain', node.url, 'gave up (' + err.message + ') — trying the next RPC');
             return pickRpc(urls, node.index + 1).then(function (next) {
               if (!next) throw err;

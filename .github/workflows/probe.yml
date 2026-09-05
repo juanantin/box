@@ -15,6 +15,10 @@ on:
       - scripts/probe.mjs
       - scripts/page-probe.mjs
       - .github/workflows/probe.yml
+      # The page probe exists to test these two, so a change to either is
+      # exactly when it should run.
+      - assets/js/app.js
+      - config.js
   workflow_dispatch:
     inputs:
       rpc_url:

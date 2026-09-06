@@ -122,7 +122,11 @@ if (process.env.SEED_ZEROS) {
     await browser.close(); server.close();
     process.exit(1);
   }
-  console.log('PASS: every seeded zero was replaced by a live figure');
+  /* Says only what was checked. The scan does not always land inside the
+     window on a loaded runner, and when it does not the tiles read "—" —
+     which passes, correctly, because a waiting tile is the intended
+     behaviour. Claiming "replaced by a live figure" would overstate it. */
+  console.log('PASS: no seeded zero is on screen (tiles show a live figure or wait)');
 }
 
 console.log('=========================================================');

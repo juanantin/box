@@ -45,6 +45,22 @@ await new Promise((r) => server.listen(PORT, r));
 const browser = await chromium.launch();
 const page = await browser.newPage();
 
+/* SEED_ZEROS reproduces the state a returning visitor is actually in: a
+   browser that banked zeros while the scan was dying, and then showed them on
+   every later visit because the remembered value owned the field and the
+   derivation only filled fields nobody owned. A fresh browser never sees this,
+   which is why it passed here while it was still broken on real screens. */
+if (process.env.SEED_ZEROS) {
+  const cfgSrc = await readFile(path.join(ROOT, 'config.js'), 'utf8');
+  const token = /contractAddress:\s*'([^']+)'/.exec(cfgSrc)[1].toLowerCase();
+  const version = /'box:stats:(v\d+):'/.exec(await readFile(path.join(ROOT, 'assets/js/app.js'), 'utf8'))[1];
+  const key = `box:stats:${version}:${token}`;
+  await page.addInitScript(([k, poison]) => {
+    try { localStorage.setItem(k, poison); } catch { /* ignore */ }
+  }, [key, JSON.stringify({ at: Date.now(), values: { fees: 0, distributedUsd: 0, distributed: 0, holders: 0 } })]);
+  console.log(`seeded ${key} with zeros`);
+}
+
 page.on('console', (m) => {
   const t = m.text();
   if (t.startsWith('[site]') || m.type() === 'error') console.log('  ' + t);
@@ -94,6 +110,19 @@ console.log('  ' + (await page.$eval('#dash-note', (n) => n.textContent.trim().r
 
 console.log('\n--- debug panel -----------------------------------------');
 console.log((await page.$eval('#dash-debug', (n) => n.textContent).catch(() => '  (none)')));
+
+if (process.env.SEED_ZEROS) {
+  const bad = await page.$$eval('[data-value]', (ns) => ns
+    .filter((n) => ['fees', 'distributedUsd', 'distributed', 'holders'].includes(n.dataset.value))
+    .filter((n) => /^\$?0$|^0\.00$/.test(n.textContent.trim()))
+    .map((n) => n.dataset.value));
+  if (bad.length) {
+    console.log(`FAIL: seeded zeros survived on ${bad.join(', ')}`);
+    await browser.close(); server.close();
+    process.exit(1);
+  }
+  console.log('PASS: every seeded zero was replaced by a live figure');
+}
 
 console.log('=========================================================');
 await browser.close();

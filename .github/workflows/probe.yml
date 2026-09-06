@@ -52,3 +52,11 @@ jobs:
           npm i --no-save playwright@1.49.1
           npx playwright install --with-deps chromium
           node scripts/page-probe.mjs
+
+      # The same page, but starting from a browser that already banked zeros —
+      # the state a returning visitor is in, and the one a fresh run cannot
+      # reach. Fails the build if a seeded zero is still on screen at the end.
+      - name: Probe the page as a returning visitor
+        env:
+          SEED_ZEROS: '1'
+        run: node scripts/page-probe.mjs

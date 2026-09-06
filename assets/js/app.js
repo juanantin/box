@@ -1086,8 +1086,10 @@
   /* Versioned, and bumped whenever a build shipped a figure that was wrong
      rather than merely stale — those get remembered too, and a remembered
      wrong number outlives the bug that made it. v2 dropped the zeros; v3
-     drops the 7,205,199 that came of picking the loudest token. */
-  var STATS_KEY = 'box:stats:v3:' + String(address).toLowerCase();
+     drops the 7,205,199 that came of picking the loudest token; v4 drops the
+     zero dollar figures the dead scan left behind, which the derivation then
+     refused to overwrite. */
+  var STATS_KEY = 'box:stats:v4:' + String(address).toLowerCase();
 
   function readStats() {
     try {
@@ -1100,7 +1102,13 @@
   function writeStats(stats) {
     var values = {};
     METRICS.forEach(function (k) {
-      if (typeof stats[k] === 'number' && isFinite(stats[k])) values[k] = stats[k];
+      if (typeof stats[k] !== 'number' || !isFinite(stats[k])) return;
+      /* A zero is never a fact here. A token that trades has holders, a market
+         cap and fees; a zero on any of them is a scan that did not finish or a
+         price that did not resolve. Banking one turns a passing failure into a
+         permanent wrong answer, carried across every later visit. */
+      if (stats[k] === 0) return;
+      values[k] = stats[k];
     });
     if (!Object.keys(values).length) return;
     try {
@@ -1206,10 +1214,19 @@
          wrong dollar figure is worse than none. */
       var want = detectedToken || (CFG.rewardTokenAddress ? String(CFG.rewardTokenAddress).toLowerCase() : null);
       if (want && priceToken && priceToken !== want) return;
-      if (typeof stats.distributed === 'number' && owner.distributedUsd === undefined) {
+
+      /* "Nothing live owns this yet" — which has to include a value seeded
+         from the remembered cache. Testing for undefined alone made a
+         remembered figure permanent: seeding sets an owner, so the two
+         derivations below were skipped on every subsequent load and the old
+         number could never be replaced. That is how zeros banked by a build
+         whose scan died outlived the bug that produced them. */
+      function stale(key) { return owner[key] === undefined || owner[key] <= RANK.remembered; }
+
+      if (typeof stats.distributed === 'number' && stale('distributedUsd')) {
         stats.distributedUsd = stats.distributed * rewardPrice;
       }
-      if (typeof stats.feesTokens === 'number' && owner.fees === undefined) {
+      if (typeof stats.feesTokens === 'number' && stale('fees')) {
         stats.fees = stats.feesTokens * rewardPrice;
       }
     }

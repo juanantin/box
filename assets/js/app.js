@@ -1095,7 +1095,18 @@
     try {
       var raw = window.localStorage.getItem(STATS_KEY);
       var c = raw ? JSON.parse(raw) : null;
-      return (c && c.values) ? c : null;
+      if (!c || !c.values) return null;
+      /* Symmetric with writeStats: a zero is not a fact, so it is not restored
+         either. Refusing to bank new ones only helps browsers that have not
+         banked one yet — every browser that already did would go on painting
+         it for the whole minute the scan takes, which is precisely the
+         complaint. Dropping it on the way back out fixes those too, without
+         waiting for a cache version to evict them. */
+      var clean = {};
+      Object.keys(c.values).forEach(function (k) {
+        if (typeof c.values[k] === 'number' && isFinite(c.values[k]) && c.values[k] !== 0) clean[k] = c.values[k];
+      });
+      return Object.keys(clean).length ? { at: c.at, values: clean } : null;
     } catch (e) { return null; }        // private mode, or a corrupt entry
   }
 

@@ -82,7 +82,8 @@ try {
   await page.waitForFunction(
     () => {
       const t = document.querySelector('[data-value="holders"]')?.textContent.trim();
-      return t && t !== '—' && t !== '';
+      // A zero is not a landed figure — it is the thing being tested for.
+      return t && t !== '—' && t !== '' && t !== '0';
     },
     null, { timeout: WAIT },
   );

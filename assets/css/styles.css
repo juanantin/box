@@ -263,7 +263,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .stat__sub b { font-weight: 500; }
-.stat__sub b::before { content: "$"; }
 
 /* On the payout card the dollar figure is the one a reader can size — 0.2307
    AMZNc means nothing without knowing a unit is worth ~$258 — so it runs
@@ -335,9 +334,6 @@ a { color: inherit; text-decoration: none; }
   0%, 65%, 100% { opacity: .22; }
   32%           { opacity: 1; }
 }
-
-/* The sub-line's "$" prefix would sit oddly beside the dots */
-.stat__sub b:has(.dots)::before { content: none; }
 
 /* Live-data legend. Discreet by design: it should be findable when someone
    wonders how current a figure is, and invisible the rest of the time. */

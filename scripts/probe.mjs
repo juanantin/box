@@ -137,6 +137,7 @@ async function priceReport(token) {
     const d = await getJson(DEX + 'pairs/' + CHAIN + '/' + POOL);
     const pair = d?.pair || d?.pairs?.[0];
     if (pair) {
+      lines.push(`    pool venue: dexId=${pair.dexId} labels=${JSON.stringify(pair.labels || [])} pairAddress=${pair.pairAddress}`);
       lines.push(`    pool pair: base ${pair.baseToken?.symbol} ${pair.baseToken?.address}`);
       lines.push(`               quote ${pair.quoteToken?.symbol} ${pair.quoteToken?.address}`);
       lines.push(`               priceUsd ${pair.priceUsd}  priceNative ${pair.priceNative}`);

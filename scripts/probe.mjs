@@ -215,6 +215,27 @@ async function main() {
     console.log('');
   }
 
+  /* A summary, last, of the two tokens anyone actually asks about. The loop
+     above reports every token that touched the distributor — which now
+     includes spam airdropped at it — so the answers worth quoting need a
+     fixed place to be, not a position in a list that grows. */
+  console.log('--- summary ---------------------------------------------');
+  for (const [label, addr] of [['token', TOKEN], ['reward', CFG.rewardTokenAddress]]) {
+    if (!addr) continue;
+    const m = await meta(addr);
+    console.log(`${label}   ${addr}`);
+    console.log(`         symbol() "${m.symbol}"   name() "${m.name}"   decimals() ${m.decimals}`);
+    if (m.supply !== null) console.log(`         totalSupply ${asTokens(m.supply, m.decimals)}`);
+  }
+  try {
+    const d = await getJson(DEX + 'pairs/' + CHAIN + '/' + POOL);
+    const pair = d?.pair || d?.pairs?.[0];
+    if (pair) {
+      console.log(`venue    ${pair.dexId} ${JSON.stringify(pair.labels || [])}  pool ${pair.pairAddress}`);
+      console.log(`         ${pair.baseToken?.symbol}/${pair.quoteToken?.symbol}  priceUsd ${pair.priceUsd}  liq $${pair.liquidity?.usd ?? '?'}`);
+    }
+  } catch (e) { console.log(`venue    FAILED ${e.message}`); }
+
   console.log(`${rpcCalls} RPC calls`);
   console.log('=========================================================');
 }

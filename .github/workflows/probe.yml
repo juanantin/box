@@ -38,12 +38,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Probe the chain
-        env:
-          RPC_URL: ${{ inputs.rpc_url }}
-          START_BLOCK: ${{ inputs.start_block }}
-        run: node scripts/probe.mjs
-
       # The other half of the question: not what the chain holds, but what the
       # page does with it. Runs the committed site in a real browser, against
       # the real network, and prints the tiles.
@@ -60,3 +54,13 @@ jobs:
         env:
           SEED_ZEROS: '1'
         run: node scripts/page-probe.mjs
+
+      # Last, deliberately. Reading these logs through the API returns only the
+      # TAIL of the job, and the browser steps are thousands of lines of CORS
+      # and retry noise — so a chain answer printed first is unreadable by the
+      # time anyone asks for it. The facts worth quoting go at the end.
+      - name: Probe the chain
+        env:
+          RPC_URL: ${{ inputs.rpc_url }}
+          START_BLOCK: ${{ inputs.start_block }}
+        run: node scripts/probe.mjs

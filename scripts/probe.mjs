@@ -107,11 +107,17 @@ const printable = (hex) => {
 };
 
 async function meta(token) {
-  const [symbol, decimals] = await Promise.all([
+  /* name() as well as symbol(). A ticker invites a guess about what the thing
+     IS — "AMZNc" reads as tokenized Amazon stock whether or not it is backed
+     by any — and that guess is exactly what a listing form should not be fed.
+     The full name is the token's own account of itself. */
+  const [symbol, name, decimals, supply] = await Promise.all([
     rpc('eth_call', [{ to: token, data: '0x95d89b41' }, 'latest']).then(printable, () => '?'),
+    rpc('eth_call', [{ to: token, data: '0x06fdde03' }, 'latest']).then(printable, () => '?'),
     rpc('eth_call', [{ to: token, data: '0x313ce567' }, 'latest']).then((h) => parseInt(h, 16), () => 18),
+    rpc('eth_call', [{ to: token, data: '0x18160ddd' }, 'latest']).then((h) => BigInt(h), () => null),
   ]);
-  return { symbol, decimals: Number.isFinite(decimals) ? decimals : 18 };
+  return { symbol, name, decimals: Number.isFinite(decimals) ? decimals : 18, supply };
 }
 
 /* ---- 3. whether anything will price it -------------------------------- */
@@ -200,6 +206,8 @@ async function main() {
     const inAmt = into.get(t)?.total ?? 0n;
     const outAmt = outOf.get(t)?.total ?? 0n;
     console.log(`token ${m.symbol}  ${t}  (${m.decimals} decimals)`);
+    console.log(`    name() "${m.name}"`);
+    if (m.supply !== null) console.log(`    totalSupply ${asTokens(m.supply, m.decimals)}`);
     console.log(`    in  ${asTokens(inAmt, m.decimals)}   (${into.get(t)?.count ?? 0} transfers)`);
     console.log(`    out ${asTokens(outAmt, m.decimals)}   (${outOf.get(t)?.count ?? 0} transfers)`);
     console.log(`    x holderShare ${CFG.holderShare}: ${asTokens(outAmt, m.decimals) * Number(CFG.holderShare)}`);

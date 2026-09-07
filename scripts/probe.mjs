@@ -111,13 +111,26 @@ async function meta(token) {
      IS — "AMZNc" reads as tokenized Amazon stock whether or not it is backed
      by any — and that guess is exactly what a listing form should not be fed.
      The full name is the token's own account of itself. */
+  /* Each failure carries its reason. The fallbacks used to be silent — a
+     throttled call printed decimals() 18, indistinguishable from a token that
+     really has 18, in output whose whole purpose is to be quoted as fact.
+     A default that cannot be told from a reading is worse than no reading. */
+  const ask = (data, decode) => rpc('eth_call', [{ to: token, data }, 'latest'])
+    .then(decode, (e) => ({ failed: e.message }));
+
   const [symbol, name, decimals, supply] = await Promise.all([
-    rpc('eth_call', [{ to: token, data: '0x95d89b41' }, 'latest']).then(printable, () => '?'),
-    rpc('eth_call', [{ to: token, data: '0x06fdde03' }, 'latest']).then(printable, () => '?'),
-    rpc('eth_call', [{ to: token, data: '0x313ce567' }, 'latest']).then((h) => parseInt(h, 16), () => 18),
-    rpc('eth_call', [{ to: token, data: '0x18160ddd' }, 'latest']).then((h) => BigInt(h), () => null),
+    ask('0x95d89b41', printable),
+    ask('0x06fdde03', printable),
+    ask('0x313ce567', (h) => parseInt(h, 16)),
+    ask('0x18160ddd', (h) => BigInt(h)),
   ]);
-  return { symbol, name, decimals: Number.isFinite(decimals) ? decimals : 18, supply };
+  const show = (v) => (v && v.failed ? `<unread: ${v.failed}>` : v);
+  return {
+    symbol: show(symbol), name: show(name),
+    decimals: Number.isFinite(decimals) ? decimals : 18,
+    decimalsRead: Number.isFinite(decimals),
+    supply: typeof supply === 'bigint' ? supply : null,
+  };
 }
 
 /* ---- 3. whether anything will price it -------------------------------- */
@@ -224,7 +237,8 @@ async function main() {
     if (!addr) continue;
     const m = await meta(addr);
     console.log(`${label}   ${addr}`);
-    console.log(`         symbol() "${m.symbol}"   name() "${m.name}"   decimals() ${m.decimals}`);
+    console.log(`         symbol() "${m.symbol}"   name() "${m.name}"   ` +
+                `decimals() ${m.decimalsRead ? m.decimals : '<unread, assuming 18>'}`);
     if (m.supply !== null) console.log(`         totalSupply ${asTokens(m.supply, m.decimals)}`);
   }
   try {

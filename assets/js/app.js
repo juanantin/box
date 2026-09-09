@@ -546,7 +546,9 @@
 
     var budget = Number(oc.maxCallsPerLoad || 120);
     var minSpan = Number(oc.minChunkSize || 1000);
-    var span = Number(oc.chunkSize || 10000);
+    var maxSpan = Number(oc.chunkSize || 10000);
+    var span = maxSpan;
+    var okStreak = 0;      // clean windows in a row, for growing the span back
 
     return pickRpc(urls).then(function (first) {
       if (!first) throw new Error('no RPC answered');
@@ -656,12 +658,39 @@
           if (res[1]) sumByToken(feesIn, res[1]);
           if (res[2]) sumByToken(paidOut, res[2]);
           cursor = end + 1;
+
+          /* Narrowing is cheap to do and expensive to keep: a span dropped to
+             1,000 for one dense window would take six loads to cross the rest
+             of the chain at that size. So it climbs back after a few clean
+             windows, and the scan ends up at whatever size actually works. */
+          if (++okStreak >= 4 && span < maxSpan) {
+            span = Math.min(maxSpan, span * 2);
+            okStreak = 0;
+          }
           return step();
         }, function (err) {
-          // "range too large" is the node asking for smaller bites, not a failure.
-          if (/too large|range|limit|exceed|more than|block range/i.test(err.message) && span > minSpan) {
+          var msg = err.message || '';
+          okStreak = 0;
+
+          /* Some refusals are about the node, not the window: a 403, a CORS
+             wall, a method it does not implement. Narrowing those wastes
+             calls, so they go straight to the next RPC. */
+          var aboutTheNode = /HTTP (40[1-5])|Failed to fetch|NetworkError|not supported|not available|unauthorized|forbidden/i.test(msg);
+
+          /* Everything else narrows first. A window holding more logs than a
+             node will serialise comes back as a bare HTTP 500 on Base's public
+             RPC — no message, nothing matching "range too large" — so it read
+             as "busy", rotated through all seven endpoints resetting the span
+             to 10,000 at each, and then gave up. The cursor stopped at exactly
+             the same block on every load, forever: the scan never completed,
+             so nothing was ever published and the tiles kept showing whatever
+             the last successful scan had left in the cache. A 500 and a
+             too-big window are indistinguishable by status alone, so the
+             window is halved first and the node changed only once the window
+             is as small as it goes. */
+          if (!aboutTheNode && span > minSpan) {
             span = Math.max(minSpan, Math.floor(span / 2));
-            log('chain', 'narrowing to', span, 'blocks');
+            log('chain', 'narrowing to', span, 'blocks after', msg);
             return step();
           }
           /* The leader has stopped answering even after its retries. The
@@ -680,7 +709,11 @@
               if (!next) throw err;
               node = next;
               head = Math.min(head, next.head - Number(oc.confirmations || 5));
-              span = Number(oc.chunkSize || 10000);   // a new node, a fresh guess at its limit
+              /* The span is NOT reset here. Whatever made the last node refuse
+                 this window is a property of the window as often as of the
+                 node, and starting the replacement at the full chunk is how
+                 seven endpoints were spent failing the same request. It grows
+                 back on its own once windows start landing. */
               return step();
             });
           }
@@ -1203,6 +1236,7 @@
     var detectedToken = null;   // what the chain says the fees are paid in
     var priceToken = null;      // which token the price in hand belongs to
     var live = 0;
+    var chainLive = false;      // did the scan itself finish and publish?
 
     // Start from what was last read, so a failing source shows its previous
     // figure rather than an em dash. Anything live overwrites it immediately.
@@ -1264,7 +1298,10 @@
             owner[k] = rank;
             got = true;
           });
-          if (got) live++;
+          if (got) {
+            live++;
+            if (rank === RANK.chain) chainLive = true;
+          }
         }
       }
       derive();
@@ -1291,10 +1328,23 @@
     return Promise.all(jobs.map(function (job) { return job[1]; })).then(function () {
       log('merged', stats);
 
-      // Only worth saying something when the data ISN'T live — a timestamp on
-      // a working dashboard is noise.
-      if (live) setLegend('live', 'Live from Base · ' + clock(Date.now()) + build());
-      else if (remembered) setLegend('stale', 'Last read ' + clock(remembered.at) + ' · reconnecting' + build());
+      /* Only worth saying something when the data ISN'T live — a timestamp on
+         a working dashboard is noise.
+
+         But "live" has to mean the tiles in front of the reader, not merely
+         that something answered. DexScreener returns in half a second and
+         fills market cap, liquidity and volume; the chain scan takes a minute
+         and fills holders, fees and distributed. Counting either as live let
+         the legend read "Live from Base" over three figures that were days
+         old and getting older, with nothing on the page to say so — which is
+         a dashboard telling a reader it is current when it is not. When the
+         scan has not published this load, the legend now says which half is
+         which, and how old the other half is. */
+      if (chainLive) setLegend('live', 'Live from Base · ' + clock(Date.now()) + build());
+      else if (remembered) {
+        setLegend('stale', 'Market data live · rewards from ' + clock(remembered.at) +
+                           ' (reconnecting)' + build());
+      } else if (live) setLegend('stale', 'Market data live · reading the chain…' + build());
       else setLegend('down', 'Live data unavailable · retrying' + build());
       renderDebug();
     });

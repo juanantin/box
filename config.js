@@ -9,7 +9,7 @@ window.SITE_CONFIG = {
   /* Build stamp. Shown in the ?debug=1 panel, so you can confirm which version
      a browser actually has rather than guessing at a cache. Bump it together
      with the ?v= on the script tags in index.html whenever you deploy. */
-  version: '27',
+  version: '28',
 
   /* ---- Token ---------------------------------------------------------- */
 
@@ -171,8 +171,15 @@ window.SITE_CONFIG = {
         // Defaults to CFG.launchBlock; set it here to scan a shorter window.
         startBlock: null,
 
-        chunkSize: 10000,      // halves itself if the node says the range is too wide
-        minChunkSize: 1000,
+        chunkSize: 10000,      // halves itself when a window is refused, and
+                               // climbs back after a few clean ones
+        /* How small a window may get before the scan gives up on the node
+           instead. 1,000 was not small enough: one dense stretch of $BOX
+           trading refused at every size down to it, on all seven endpoints,
+           and the cursor stopped there permanently — the scan never reached
+           the head again, so nothing was ever published and the reward tiles
+           served whatever the last completed scan had cached. */
+        minChunkSize: 200,
         confirmations: 5,      // stay clear of a reorg
 
         /* A page load spends at most this many requests, banks what it
@@ -180,7 +187,7 @@ window.SITE_CONFIG = {
            published only once the scan reaches the head: a partial fold has
            seen sends whose receives are in unread blocks, so it under-counts.
            ~200k blocks at 10k a request is ~20, well inside this. */
-        maxCallsPerLoad: 120,
+        maxCallsPerLoad: 200,
 
         /* The cost of a first scan grows with the token's history — roughly
            43k blocks a day on Base, so ~20 requests a fortnight at the chunk

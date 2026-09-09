@@ -144,7 +144,19 @@ export async function indexRange(opts) {
         toBlock: '0x' + end.toString(16),
       }])));
     } catch (err) {
-      if (isRangeTooLarge(err) && size > minChunkSize) {
+      /* Narrow first, for anything that is not plainly about the node.
+
+         This used to require isRangeTooLarge — a node SAYING the range is too
+         wide. Base's public RPC does not say it: a window holding more logs
+         than it will serialise comes back as a bare HTTP 500. So one dense
+         stretch of $BOX trading returned "error, no progress" at the same
+         block on every run, the cursor never moved past it, and because only
+         a synced scan publishes figures, data/rewards.json stayed null
+         indefinitely. The browser scan had the identical bug at the identical
+         block; this is the same fix, in the other implementation. */
+      const aboutTheNode = /HTTP (40[1-5])|fetch failed|ECONN|ETIMEDOUT|unauthorized|forbidden|not supported/i
+        .test(err && err.message || '');
+      if ((isRangeTooLarge(err) || !aboutTheNode) && size > minChunkSize) {
         size = Math.max(minChunkSize, Math.floor(size / 2));
         continue;                       // same cursor, smaller bite
       }

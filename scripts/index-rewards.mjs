@@ -58,7 +58,23 @@ const readJson = (f, fallback) => {
 
 function loadState() {
   const s = readJson(STATE_FILE, null);
-  return s || { cursor: START_BLOCK, totals: {}, balances: {}, head: null, updatedAt: null };
+  const fresh = { cursor: START_BLOCK, totals: {}, balances: {}, head: null, updatedAt: null };
+  if (!s) return fresh;
+
+  /* A cursor below START_BLOCK is never real progress — nothing this token
+     cares about happened before it existed. The repo shipped a state file
+     with cursor 0, and because the fallback above only fires when the file is
+     ABSENT, that zero was read as gospel: the indexer scanned Base from
+     genesis at 80,000 blocks a run and would have needed some six hundred
+     runs to reach the launch block. Every run in the meantime published
+     nulls, so the site had no baseline and every phone was left to scan the
+     chain itself. Clamping here costs one comparison and makes that class of
+     mistake — a stale or templated state file — unable to happen again. */
+  if (!(s.cursor >= START_BLOCK)) {
+    console.log(`  state cursor ${s.cursor} is below START_BLOCK ${START_BLOCK} — starting there instead`);
+    return fresh;
+  }
+  return s;
 }
 
 function holderCount(balances) {

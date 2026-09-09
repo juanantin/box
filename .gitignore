@@ -1,7 +1,3 @@
 node_modules/
 .DS_Store
 *.log
-
-# Indexer cursor. Derived state, and a checked-in one is a trap: a stale
-# cursor is read in preference to START_BLOCK and sends the scan to genesis.
-data/rewards-state.json

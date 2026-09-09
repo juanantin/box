@@ -1,0 +1,9 @@
+{
+  "__doc": "Indexer cursor and running totals, written by scripts/index-rewards.mjs. TRACKED ON PURPOSE: Actions runners are ephemeral, so this file is the only thing carrying a backfill from one run to the next. Seeded at the block $BOX launched; a cursor below it is refused as impossible progress. Delete to force a full rescan.",
+  "cursor": 50704292,
+  "head": null,
+  "complete": false,
+  "passes": 0,
+  "totals": {},
+  "balances": {}
+}

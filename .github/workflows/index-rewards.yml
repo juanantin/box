@@ -27,6 +27,11 @@ on:
   # to keep showing em dashes. data/ is not listed, so the commit a run makes
   # cannot trigger another.
   push:
+    # main only. This job COMMITS its results back to the branch that ran it,
+    # so on a mirrored feature branch it would quietly sync the wrong ref —
+    # burning the backfill and leaving the site, which is served from main,
+    # exactly as empty as before.
+    branches: [main]
     paths:
       - scripts/index-rewards.mjs
       - worker/src/config.js

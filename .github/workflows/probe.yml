@@ -63,6 +63,15 @@ jobs:
           MOBILE: '1'
         run: node scripts/page-probe.mjs
 
+      # The DEPLOYED site, which is the only one a visitor sees. Everything
+      # above runs against this working tree and so proves the code is right,
+      # never that it is live — the repo is not served from GitHub Pages
+      # (has_pages is false); it deploys to Vercel.
+      - name: Probe the live site
+        env:
+          SITE_URL: https://box-psi-snowy.vercel.app
+        run: node scripts/page-probe.mjs
+
       # Last, deliberately. Reading these logs through the API returns only the
       # TAIL of the job, and the browser steps are thousands of lines of CORS
       # and retry noise — so a chain answer printed first is unreadable by the

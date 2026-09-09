@@ -21,6 +21,13 @@ import { chromium } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8123);
+
+/* SITE_URL probes the DEPLOYED site instead of this working tree. Everything
+   here had been verified against a local copy of the repo, which says nothing
+   about what a visitor's browser is actually served: the repo is not on
+   GitHub Pages at all (has_pages is false) — it deploys to Vercel. A local
+   pass proves the code is right, not that the code is live. */
+const SITE_URL = process.env.SITE_URL || '';
 const WAIT = Number(process.env.WAIT_MS || 150000);
 
 const TYPES = {
@@ -40,7 +47,7 @@ const server = http.createServer(async (req, res) => {
   } catch { res.writeHead(404).end('not found'); }
 });
 
-await new Promise((r) => server.listen(PORT, r));
+if (!SITE_URL) await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch();
 
@@ -84,7 +91,9 @@ page.on('console', (m) => {
 page.on('pageerror', (e) => console.log('  PAGE ERROR: ' + e.message));
 
 console.log('=== page probe ==========================================');
-await page.goto(`http://localhost:${PORT}/?debug=1`, { waitUntil: 'commit' });
+const target = SITE_URL ? SITE_URL.replace(/\/$/, '') + '/?debug=1' : `http://localhost:${PORT}/?debug=1`;
+console.log(`target ${target}`);
+await page.goto(target, { waitUntil: 'commit' });
 
 /* Settle on the dashboard rather than on a timer: the legend goes live the
    moment something answered, and the chain scan is the slowest of them. */
@@ -120,6 +129,17 @@ console.log('\n--- tiles as rendered -----------------------------------');
 for (const t of tiles) {
   console.log(`  ${String(t.label).padEnd(22)} ${t.value}`);
   if (t.sub !== undefined) console.log(`  ${' '.repeat(22)} sub: ${JSON.stringify(t.sub)}${t.subHidden ? '  (HIDDEN)' : ''}`);
+}
+
+const served = await page.evaluate(() => (window.SITE_CONFIG || {}).version || '(none)');
+console.log(`\nbuild served by this target: ${served}`);
+
+if (SITE_URL) {
+  try {
+    const r = await fetch(SITE_URL.replace(/\/$/, '') + '/data/rewards.json', { cache: 'no-store' });
+    const j = await r.json();
+    console.log(`its data/rewards.json: updatedAt ${j.updatedAt} · distributed ${j.totalDistributed} · holders ${j.holders}`);
+  } catch (e) { console.log(`its data/rewards.json: FAILED ${e.message}`); }
 }
 
 console.log('\n--- legend ----------------------------------------------');
@@ -172,4 +192,4 @@ if (MOBILE) {
 
 console.log('=========================================================');
 await browser.close();
-server.close();
+if (!SITE_URL) server.close();

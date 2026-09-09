@@ -21,6 +21,16 @@ on:
     # Deliberately off the :00/:15/:30/:45 boundary — GitHub's scheduler is
     # heavily oversubscribed there and delays runs the longest.
     - cron: '7,22,37,52 * * * *'
+  # Also on push to its own inputs. GitHub's scheduler routinely delays a
+  # newly added cron by half an hour or more, and dispatching by hand needs a
+  # permission not every token carries — neither is a good reason for the site
+  # to keep showing em dashes. data/ is not listed, so the commit a run makes
+  # cannot trigger another.
+  push:
+    paths:
+      - scripts/index-rewards.mjs
+      - worker/src/config.js
+      - .github/workflows/index-rewards.yml
   workflow_dispatch:          # lets you kick off a run by hand
 
 concurrency:

@@ -1,14 +1,15 @@
 {
   "__doc": [
-    "Fees collected and reward tokens distributed. EMPTY, and meant to stay that",
-    "way while the page reads them from the chain itself: app.js sums the reward",
-    "token in and out of the rewards index on every load, so nothing here has to",
-    "be maintained by hand.",
+    "Fees collected, rewards distributed and the holder count, published by",
+    "scripts/index-rewards.mjs on a schedule so that no visitor has to compute",
+    "them. Reading 375,000 blocks of Base in the browser takes dozens of RPC",
+    "calls and about a minute of an uninterrupted tab: a desktop waits it out, a",
+    "phone gets backgrounded and shows em dashes. These figures are served",
+    "immediately instead, and app.js's own chain scan refines them afterwards.",
     "",
-    "It remains as the fallback for when no RPC answers, and as the file",
-    "scripts/index-rewards.mjs writes. Nulls render as em dashes, which is the",
-    "honest answer when nothing could be read — a number typed in here would",
-    "outlive whatever it described."
+    "Written only when meta.synced is true. A scan short of the head publishes",
+    "nulls, which render as em dashes — the honest answer when the total is not",
+    "yet known, and better than a number that would understate it."
   ],
   "totalDistributed": 25.249915755000004,
   "totalDistributedUsd": 6394.288665796201,

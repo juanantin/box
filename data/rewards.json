@@ -10,18 +10,18 @@
     "honest answer when nothing could be read — a number typed in here would",
     "outlive whatever it described."
   ],
-  "totalDistributed": null,
-  "totalDistributedUsd": null,
-  "totalFeesCollected": null,
-  "totalFeesTokens": null,
-  "holders": null,
-  "marketCap": 331392,
-  "liquidity": 68875.83,
-  "volume24h": 98920.78,
-  "updatedAt": "2026-09-09T11:10:33.585Z",
+  "totalDistributed": 2.5244695737e-9,
+  "totalDistributedUsd": 6.37655769620883e-7,
+  "totalFeesCollected": 7.0943351929918e-7,
+  "totalFeesTokens": 2.808636602e-9,
+  "holders": 1084,
+  "marketCap": 280778,
+  "liquidity": 63002.56,
+  "volume24h": 103967.28,
+  "updatedAt": "2026-09-09T11:21:11.670Z",
   "meta": {
-    "synced": false,
-    "blocksBehind": 161112,
-    "kexPriceUsd": 253.71
+    "synced": true,
+    "blocksBehind": 0,
+    "kexPriceUsd": 252.59
   }
 }

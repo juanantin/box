@@ -49,6 +49,13 @@ export const CONTRACTS = {
 // before it, so the scan starts here rather than at genesis.
 export const START_BLOCK = 50704292;
 
+/* Decimals, per token, read from each contract rather than assumed. $BOX is
+   the usual 18; the reward token is NOT — AMZNc's decimals() returns 8, and
+   treating it as 18 understates every fee and payout figure by a factor of
+   ten billion. */
+export const STR_DECIMALS = 18;
+export const KEX_DECIMALS = 8;
+
 /* The three flows the totals are built from:
 
      `feesIn`   reward tokens ARRIVING at the distributor — "fees collected"
@@ -59,9 +66,14 @@ export const START_BLOCK = 50704292;
 
    Verify these against the platform's own panel before trusting them. */
 export const STREAMS = [
-  { id: 'feesIn', kind: 'sum', token: TOKENS.KEX, to: CONTRACTS.rewardsIndex, decimals: 18 },
-  { id: 'paidOut', kind: 'sum', token: TOKENS.KEX, from: CONTRACTS.rewardsIndex, decimals: 18 },
-  { id: 'holders', kind: 'balances', token: TOKENS.STR, decimals: 18 },
+  /* KEX_DECIMALS, not 18. The reward token's own decimals() returns 8 —
+     verified on chain — and an 18 here divides every reward figure by 10^10:
+     25.244695737 AMZNc was published as 2.5244695737e-9, digits perfect,
+     scale meaningless. $BOX itself really is 18, so the two must not share
+     a constant. */
+  { id: 'feesIn', kind: 'sum', token: TOKENS.KEX, to: CONTRACTS.rewardsIndex, decimals: KEX_DECIMALS },
+  { id: 'paidOut', kind: 'sum', token: TOKENS.KEX, from: CONTRACTS.rewardsIndex, decimals: KEX_DECIMALS },
+  { id: 'holders', kind: 'balances', token: TOKENS.STR, decimals: STR_DECIMALS },
 ];
 
 /* Share of the outflow that reaches holders — the rest is the protocol's cut.
@@ -76,7 +88,7 @@ export const PROTOCOL_ADDRESS = null;
 if (PROTOCOL_ADDRESS) {
   STREAMS.push({
     id: 'protocolOut', kind: 'sum', token: TOKENS.KEX,
-    from: CONTRACTS.rewardsIndex, to: PROTOCOL_ADDRESS, decimals: 18,
+    from: CONTRACTS.rewardsIndex, to: PROTOCOL_ADDRESS, decimals: KEX_DECIMALS,
   });
 }
 

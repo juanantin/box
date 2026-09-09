@@ -13,6 +13,13 @@ import { START_BLOCK, TOKENS, CONTRACTS } from '../src/config.js';
 const word = (n) => '0x' + BigInt(n).toString(16).padStart(64, '0');
 const E18 = 10n ** 18n;
 
+/* The reward token is 8 decimals — AMZNc's own decimals() says so — and these
+   fixtures are denominated in it. Hardcoded rather than imported from the
+   config: a test that derives its scale from the code under test would have
+   agreed with the 18 that published 25.244695737 AMZNc as 2.5e-9, and gone
+   green while every reward figure on the site was out by ten billion. */
+const EKEX = 10n ** 8n;
+
 function fakeKV() {
   const store = new Map();
   return {
@@ -76,8 +83,8 @@ test('cron sync banks totals, then a later run resumes without re-counting', asy
 
   // First run: head only a little past the start block.
   const a = makeEnv(START + 999, {
-    paidOut: [[START + 10, 5n * E18], [START + 500, 3n * E18]],
-    feesIn: [[START + 20, 12n * E18]],
+    paidOut: [[START + 10, 5n * EKEX], [START + 500, 3n * EKEX]],
+    feesIn: [[START + 20, 12n * EKEX]],
   });
   await runCron(mod, a.env);
 
@@ -91,8 +98,8 @@ test('cron sync banks totals, then a later run resumes without re-counting', asy
 
   // Head advances; a new payout lands. Reuse the same KV.
   const b = makeEnv(START + 1999, {
-    paidOut: [[START + 10, 5n * E18], [START + 500, 3n * E18], [START + 1500, 4n * E18]],
-    feesIn: [[START + 20, 12n * E18]],
+    paidOut: [[START + 10, 5n * EKEX], [START + 500, 3n * EKEX], [START + 1500, 4n * EKEX]],
+    feesIn: [[START + 20, 12n * EKEX]],
   });
   b.env.REWARDS = a.KV;                                 // carry state over
   await runCron(mod, b.env);
@@ -108,7 +115,7 @@ test('cron sync banks totals, then a later run resumes without re-counting', asy
   assert.equal(dbg.lastError, null);
   assert.equal(dbg.startBlock, START);
   assert.equal(typeof dbg.rawTotals.paidOut, 'string');   // stored as string
-  assert.equal(dbg.rawTotals.paidOut, (12n * E18).toString());
+  assert.equal(dbg.rawTotals.paidOut, (12n * EKEX).toString());
 });
 
 test('fees track the rewards contract, not the platform-wide fee locker', async () => {

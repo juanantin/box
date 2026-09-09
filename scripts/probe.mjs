@@ -41,17 +41,47 @@ const POOL = (CFG.contracts || {}).pool;
 const TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const asTopic = (a) => '0x' + '0'.repeat(24) + String(a).toLowerCase().replace(/^0x/, '');
 
+/* The same endpoints the page uses, for the same reason: a single public RPC
+   has bad minutes. Without this the probe reported "no backend is currently
+   healthy" and failed the build — a red run that says nothing about the site,
+   which is its own kind of false alarm. */
+const ENDPOINTS = [RPC_URL, ...(CFG.sources?.holders?.onchain?.rpcUrls || [])]
+  .filter((u, i, a) => u && a.indexOf(u) === i);
+
+const TRANSIENT = /HTTP (408|429|5\d\d)|fetch failed|ECONN|ETIMEDOUT|socket|healthy|timeout/i;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 let rpcCalls = 0;
+let endpoint = 0;
+
 async function rpc(method, params = []) {
-  rpcCalls++;
-  const res = await fetch(RPC_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: rpcCalls, method, params }),
-  });
-  const j = await res.json();
-  if (j.error) throw new Error(j.error.message);
-  return j.result;
+  let lastErr;
+  for (let node = 0; node < ENDPOINTS.length; node++) {
+    const url = ENDPOINTS[(endpoint + node) % ENDPOINTS.length];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      rpcCalls++;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: rpcCalls, method, params }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const j = await res.json();
+        if (j.error) throw new Error(j.error.message);
+        endpoint = (endpoint + node) % ENDPOINTS.length;   // stay where it worked
+        return j.result;
+      } catch (err) {
+        lastErr = err;
+        /* A refusal about the REQUEST — a range too wide, a filter a node
+           dislikes — must reach the caller, which knows how to shrink it.
+           Only a refusal about the SERVER is worth waiting or moving for. */
+        if (!TRANSIENT.test(err.message || '')) throw err;
+        await sleep(400 * Math.pow(3, attempt));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 async function getJson(url) {

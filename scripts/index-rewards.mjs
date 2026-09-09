@@ -118,6 +118,7 @@ async function main() {
   let cursor = state.cursor;
   let passes = 0;
   let scanError = null;
+  let consecutiveErrors = 0;
 
   // Keep scanning until caught up or out of time. Whatever is scanned before a
   // failure is still banked below, so a flaky RPC costs a window, not the run.
@@ -142,7 +143,22 @@ async function main() {
       cursor = res.cursor;
       passes++;
       process.stdout.write(`  scanned to ${cursor - 1} (${head - cursor + 1} behind)\n`);
-      if (res.error) break;                      // banked what we could; stop here
+      /* An error used to end the run. On a public RPC that meant a backfill
+         advanced ~214,000 blocks in ninety seconds and then stopped with
+         six and a half minutes of budget unspent — and since only a SYNCED
+         scan publishes figures, a backfill that keeps stopping short never
+         publishes at all. The windows that landed are already banked and the
+         cursor has moved, so the right response is to wait a moment and carry
+         on, not to give up with time in hand. */
+      if (res.error) {
+        if (++consecutiveErrors > 8) {
+          process.stdout.write('  eight failures in a row — banking and stopping\n');
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1500 * consecutiveErrors));
+        continue;
+      }
+      consecutiveErrors = 0;
     }
   } catch (err) {
     scanError = err;
@@ -170,6 +186,10 @@ async function main() {
   }, null, 0) + '\n');
 
   // Preserve the doc block so the file stays self-explanatory.
+  process.stdout.write(complete
+    ? `  SYNCED to head — publishing real totals\n`
+    : `  not synced (${head - cursor + 1} blocks short) — publishing nulls for the reward fields\n`);
+
   fs.writeFileSync(OUT_FILE, JSON.stringify({
     ...(prev.__doc ? { __doc: prev.__doc } : {}),
     totalDistributed: complete ? distributed : null,

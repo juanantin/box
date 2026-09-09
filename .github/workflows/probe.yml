@@ -55,6 +55,14 @@ jobs:
           SEED_ZEROS: '1'
         run: node scripts/page-probe.mjs
 
+      # A phone, cold. The report that prompted this was "showing — on
+      # mobile", and a desktop run cannot see it: the difference is an empty
+      # cache and a tab nobody keeps in front for a minute.
+      - name: Probe the page as a phone
+        env:
+          MOBILE: '1'
+        run: node scripts/page-probe.mjs
+
       # Last, deliberately. Reading these logs through the API returns only the
       # TAIL of the job, and the browser steps are thousands of lines of CORS
       # and retry noise — so a chain answer printed first is unreadable by the

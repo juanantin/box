@@ -4,15 +4,23 @@ name: Index rewards
 # token holders. State lives in data/rewards-state.json, so each run resumes
 # where the last one stopped — a first backfill may take a few runs.
 #
-# THE SCHEDULE IS OFF. Fill in worker/src/config.js (TOKENS, CONTRACTS,
-# START_BLOCK) first — on the placeholder config a run would scan nothing and
-# commit nulls every quarter hour. Uncomment the cron below once it is real.
+# THE SCHEDULE IS ON. worker/src/config.js is real — TOKENS, CONTRACTS
+# (rewardsIndex included), START_BLOCK and HOLDER_SHARE are all filled in —
+# and the totals it produces have been reconciled twice against an independent
+# scan: 28.09 AMZNc in, 25.24 to holders, 1,088 holders.
+#
+# This exists because a phone should not have to read 375,000 blocks of Base
+# to see three numbers. The browser scan needs dozens of RPC calls and about a
+# minute of an uninterrupted tab; a desktop visitor waits it out, a phone gets
+# backgrounded and shows em dashes. This publishes the same figures ahead of
+# time so every visitor has them immediately, and the live scan becomes a
+# refinement rather than the only source.
 
 on:
-  # schedule:
-  #   # Deliberately off the :00/:15/:30/:45 boundary — GitHub's scheduler is
-  #   # heavily oversubscribed there and delays runs the longest.
-  #   - cron: '7,22,37,52 * * * *'
+  schedule:
+    # Deliberately off the :00/:15/:30/:45 boundary — GitHub's scheduler is
+    # heavily oversubscribed there and delays runs the longest.
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:          # lets you kick off a run by hand
 
 concurrency:

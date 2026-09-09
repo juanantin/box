@@ -43,7 +43,23 @@ const server = http.createServer(async (req, res) => {
 await new Promise((r) => server.listen(PORT, r));
 
 const browser = await chromium.launch();
-const page = await browser.newPage();
+
+/* MOBILE reproduces the report that started this: a phone showing em dashes
+   where a desktop shows figures. Nothing about the network differs here — what
+   differs is that a phone arrives with an empty cache and rarely keeps the tab
+   in front for the minute the chain scan needs, so the run reports how long
+   the reward tiles take to fill from a cold start. */
+const MOBILE = !!process.env.MOBILE;
+const context = await browser.newContext(MOBILE ? {
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 '
+           + '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+} : {});
+const page = await context.newPage();
+if (MOBILE) console.log('mobile: 390x844, cold cache');
 
 /* SEED_ZEROS reproduces the state a returning visitor is actually in: a
    browser that banked zeros while the scan was dying, and then showed them on
@@ -127,6 +143,31 @@ if (process.env.SEED_ZEROS) {
      which passes, correctly, because a waiting tile is the intended
      behaviour. Claiming "replaced by a live figure" would overstate it. */
   console.log('PASS: no seeded zero is on screen (tiles show a live figure or wait)');
+}
+
+/* On mobile the question is not "is a zero showing" but "did anything arrive".
+   A dash while data/rewards.json still holds nulls is correct — there is
+   genuinely nothing to show yet. A dash while that file HAS figures is the
+   fallback failing, which is the fault worth failing a build over. */
+if (MOBILE) {
+  const published = JSON.parse(await readFile(path.join(ROOT, 'data/rewards.json'), 'utf8'));
+  const hasBaseline = ['totalDistributed', 'totalFeesTokens', 'holders']
+    .some((k) => typeof published[k] === 'number');
+  const empty = await page.$$eval('[data-value]', (ns) => ns
+    .filter((n) => ['fees', 'distributed', 'holders'].includes(n.dataset.value))
+    .filter((n) => /^[—-]?$/.test(n.textContent.trim()))
+    .map((n) => n.dataset.value));
+
+  if (!hasBaseline) {
+    console.log(`mobile: data/rewards.json is still empty, so ${empty.length} dash(es) is honest;`
+              + ' the scheduled indexer has not published yet');
+  } else if (empty.length) {
+    console.log(`FAIL: rewards.json has figures but ${empty.join(', ')} still show a dash`);
+    await browser.close(); server.close();
+    process.exit(1);
+  } else {
+    console.log('PASS: the published baseline filled every reward tile');
+  }
 }
 
 console.log('=========================================================');

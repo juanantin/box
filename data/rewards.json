@@ -7,16 +7,21 @@
     "",
     "It remains as the fallback for when no RPC answers, and as the file",
     "scripts/index-rewards.mjs writes. Nulls render as em dashes, which is the",
-    "honest answer when nothing could be read \u2014 a number typed in here would",
+    "honest answer when nothing could be read — a number typed in here would",
     "outlive whatever it described."
   ],
-  "totalFeesCollected": null,
-  "totalFeesTokens": null,
   "totalDistributed": null,
   "totalDistributedUsd": null,
+  "totalFeesCollected": null,
+  "totalFeesTokens": null,
   "holders": null,
-  "marketCap": null,
-  "liquidity": null,
-  "volume24h": null,
-  "updatedAt": null
+  "marketCap": 333286,
+  "liquidity": 69121.79,
+  "volume24h": 99207.74,
+  "updatedAt": "2026-09-09T10:59:46.290Z",
+  "meta": {
+    "synced": false,
+    "blocksBehind": 49400865,
+    "kexPriceUsd": 254.85
+  }
 }

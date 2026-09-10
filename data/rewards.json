@@ -11,18 +11,18 @@
     "nulls, which render as em dashes — the honest answer when the total is not",
     "yet known, and better than a number that would understate it."
   ],
-  "totalDistributed": 26.654478624000003,
-  "totalDistributedUsd": 6719.860605896641,
-  "totalFeesCollected": 7495.2375683313,
+  "totalDistributed": 26.757023409,
+  "totalDistributedUsd": 6743.545852746861,
+  "totalFeesCollected": 7492.829435996069,
   "totalFeesTokens": 29.73002883,
-  "holders": 1051,
-  "marketCap": 275167,
-  "liquidity": 62396.95,
-  "volume24h": 86681.94,
-  "updatedAt": "2026-09-10T18:20:37.900Z",
+  "holders": 1049,
+  "marketCap": 278248,
+  "liquidity": 62697.53,
+  "volume24h": 75891.37,
+  "updatedAt": "2026-09-10T20:59:18.032Z",
   "meta": {
     "synced": true,
     "blocksBehind": 0,
-    "kexPriceUsd": 252.11
+    "kexPriceUsd": 252.029
   }
 }

@@ -109,7 +109,16 @@ async function flows(party, address, from, to) {
         topics, fromBlock: '0x' + cursor.toString(16), toBlock: '0x' + end.toString(16),
       }]);
     } catch (err) {
-      if (/too large|range|limit|exceed|more than/i.test(err.message) && span > 500) { span = Math.floor(span / 2); continue; }
+      /* Narrow for anything that is not plainly about the node. Base's public
+         RPC has started answering HTTP 413 for a window whose logs are too
+         large to serialise — no message, nothing matching "too large" — and
+         this test used to require the words, so the probe threw and failed
+         the build for a reason that had nothing to do with the site. Third
+         time this exact gap has bitten: app.js and worker/src/indexer.js both
+         had it. */
+      const aboutTheNode = /HTTP (40[1-5])|fetch failed|ECONN|ETIMEDOUT|unauthorized|forbidden|not supported/i
+        .test(err.message || '');
+      if (!aboutTheNode && span > 100) { span = Math.floor(span / 2); continue; }
       throw err;
     }
     for (const l of logs) {

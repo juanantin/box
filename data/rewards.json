@@ -12,17 +12,17 @@
     "yet known, and better than a number that would understate it."
   ],
   "totalDistributed": 30.370019652,
-  "totalDistributedUsd": 7551.20168627328,
-  "totalFeesCollected": 8390.224622976,
+  "totalDistributedUsd": 7558.49049098976,
+  "totalFeesCollected": 8398.323295392,
   "totalFeesTokens": 33.7444684,
   "holders": 916,
-  "marketCap": 37923,
-  "liquidity": 20615.35,
-  "volume24h": 5824.52,
-  "updatedAt": "2026-10-01T20:35:18.561Z",
+  "marketCap": 37313,
+  "liquidity": 20448.59,
+  "volume24h": 6731.32,
+  "updatedAt": "2026-10-02T00:10:39.038Z",
   "meta": {
     "synced": true,
     "blocksBehind": 0,
-    "kexPriceUsd": 248.64
+    "kexPriceUsd": 248.88
   }
 }
